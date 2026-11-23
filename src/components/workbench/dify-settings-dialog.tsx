@@ -32,6 +32,7 @@ interface DifyStatus {
   user: string;
   source: "none" | "file" | "env";
   keyMasked: string;
+  revisionConfigured?: boolean;
 }
 
 type Message = { type: "success" | "warning" | "error"; text: string } | null;
@@ -56,6 +57,7 @@ export function DifySettingsDialog({
   const [status, setStatus] = useState<DifyStatus>(emptyStatus);
   const [baseUrl, setBaseUrl] = useState("https://api.dify.ai/v1");
   const [apiKey, setApiKey] = useState("");
+  const [revisionApiKey, setRevisionApiKey] = useState("");
   const [user, setUser] = useState("content-studio");
   const [showKey, setShowKey] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -72,6 +74,7 @@ export function DifySettingsDialog({
         setBaseUrl(payload.baseUrl || "https://api.dify.ai/v1");
         setUser(payload.user || "content-studio");
         setApiKey("");
+        setRevisionApiKey("");
       })
       .catch(() => {
         setMessage({ type: "error", text: "读取当前配置失败。" });
@@ -89,6 +92,7 @@ export function DifySettingsDialog({
         body: JSON.stringify({
           baseUrl,
           apiKey,
+          revisionApiKey,
           user,
           testOnly: action === "test",
         }),
@@ -104,6 +108,7 @@ export function DifySettingsDialog({
       }
       setStatus(payload.status);
       setApiKey("");
+      setRevisionApiKey("");
       onStatusChange(Boolean(payload.status.configured));
       if (action === "test") {
         setMessage({ type: "success", text: payload.message });
@@ -202,7 +207,7 @@ export function DifySettingsDialog({
           <div className="space-y-1.5">
             <label htmlFor="dify-api-key" className="flex items-center gap-1.5 text-xs font-medium">
               <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
-              API Key
+              首轮工作流 API Key
             </label>
             <div className="relative">
               <Input
@@ -226,6 +231,9 @@ export function DifySettingsDialog({
           </div>
 
           <div className="space-y-1.5">
+            <label htmlFor="revision-key" className="text-xs font-medium">改稿工作流 API Key</label>
+            <Input id="revision-key" type="password" value={revisionApiKey} onChange={event => setRevisionApiKey(event.target.value)} placeholder={status.revisionConfigured ? "已配置，留空保留" : "第二个应用的 app-..."} autoComplete="off" />
+            <p className="text-[10px] text-muted-foreground">两个工作流分别发布，分别填写密钥。测试连接仅检测首轮。</p>
             <label htmlFor="dify-user" className="text-xs font-medium">
               User 标识
             </label>

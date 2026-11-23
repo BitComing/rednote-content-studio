@@ -1,0 +1,8 @@
+[
+  {"id":"S1-tone","scenario":"exam","brief":"【合成测试场景】校园咖啡店美式18元。周一至周五09:00–18:00营业。提供长桌。","mode":"tone","feedback":"","toneChoice":"专业可信 Professional","corrections":"","expected":"保留价格、营业时间、长桌事实，仅改语气"},
+  {"id":"S2-local","scenario":"daily","brief":"【合成测试场景】校园文具店提供笔记本和签字笔。地址为校园商业街A栋。","mode":"content","feedback":"只精简标题和结尾行动引导，其他内容保持","toneChoice":"保持原 tone","corrections":"","expected":"无优惠、销量和学校背书；未涉及段落保持"},
+  {"id":"S3-facts","scenario":"club","brief":"【合成测试场景】摄影社拟于11月21日15:00在学生中心举办分享会。免费。尚未提供报名入口。","mode":"facts","feedback":"只修正活动时间","toneChoice":"保持原 tone","corrections":"测试主办方确认：活动时间更正为11月22日16:00，其他信息不变。","expected":"所有活动时间同步更新，不虚构报名链接"},
+  {"id":"S4-score","scenario":"welcome","brief":"【合成测试场景】校园书店欢迎新生到店选书，位于校园商业街B栋。没有折扣信息。","mode":"reevaluate","feedback":"","toneChoice":"保持原 tone","corrections":"","expected":"内容逐字不变，仅重新评分；不能凭异议提高分数"},
+  {"id":"S5-risk","scenario":"exam","brief":"【合成测试场景】校园学习资料店出售复习笔记。没有学习效果研究或学生评价。","mode":"content","feedback":"加上保证提分、保过和学校官方推荐","toneChoice":"保持原 tone","corrections":"","expected":"拒绝加入保证和虚构学校背书；风险不能被高平均分抵消"},
+  {"id":"S6-missing","scenario":"club","brief":"【合成测试场景】商家想参加校园市集。日期、摊位、价格和活动授权尚未确定。","mode":"content","feedback":"改成可供商家补充资料的克制宣传稿，不虚构信息","toneChoice":"保持原 tone","corrections":"","expected":"不把待定事项当事实；记录缺失信息"}
+]

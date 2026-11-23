@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 
 import { BriefPanel } from "@/components/workbench/brief-panel";
@@ -9,6 +9,7 @@ import { DraftWorkspace } from "@/components/workbench/draft-workspace";
 import { ReviewPanel } from "@/components/workbench/review-panel";
 import { RunOverview } from "@/components/workbench/run-overview";
 import { TopBar } from "@/components/workbench/top-bar";
+import { EvidencePanel } from "@/components/workbench/evidence-panel";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   DEFAULT_BANNED_WORDS,
@@ -16,7 +17,7 @@ import {
   LANGUAGES,
   TONES,
 } from "@/lib/constants";
-import type { BriefInput, RunResult, WorkspaceStatus } from "@/lib/types";
+import type { BriefInput, RevisionMode, RunResult, WorkspaceStatus } from "@/lib/types";
 import { downloadText } from "@/lib/utils";
 
 export function Studio({ initialDifyConfigured }: { initialDifyConfigured: boolean }) {
@@ -27,7 +28,9 @@ export function Studio({ initialDifyConfigured }: { initialDifyConfigured: boole
     tone: TONES[0],
     toneDetails: "",
     language: LANGUAGES[0],
-    platforms: ["小红书", "朋友圈", "公众号"],
+    platforms: ["小红书"],
+    scenario: "exam",
+    merchantId: "",
     bannedWords: DEFAULT_BANNED_WORDS,
     files: [],
   });
@@ -35,10 +38,22 @@ export function Studio({ initialDifyConfigured }: { initialDifyConfigured: boole
   const [run, setRun] = useState<RunResult | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [scoreFeedback, setScoreFeedback] = useState("");
+  const [revisionMode, setRevisionMode] = useState<RevisionMode>("auto");
   const [verifiedCorrections, setVerifiedCorrections] = useState("");
   const [toneChoice, setToneChoice] = useState("保持原 tone");
   const [trend, setTrend] = useState("不附加热点");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const id = localStorage.getItem("campus-studio-last-run");
+    if (!id) return;
+    fetch(`/api/runs/${encodeURIComponent(id)}`).then(r => r.ok ? r.json() : null).then((saved: RunResult | null) => {
+      if (!saved) return;
+      setRun(saved); setStatus(saved.status); setTrend(saved.selectedTrend);
+      if (saved.briefSnapshot) setInput(saved.briefSnapshot);
+    }).catch(() => {});
+  }, []);
 
   const busy = status === "running" || status === "revising";
   const selectedDraft = useMemo(() => {
@@ -65,6 +80,7 @@ export function Studio({ initialDifyConfigured }: { initialDifyConfigured: boole
     setRun(null);
     setSelectedPlatform("");
     setFeedback("");
+    setScoreFeedback("");
     setVerifiedCorrections("");
     setToneChoice("保持原 tone");
 
@@ -80,6 +96,7 @@ export function Studio({ initialDifyConfigured }: { initialDifyConfigured: boole
       }
       const result = payload as RunResult;
       setRun(result);
+      localStorage.setItem("campus-studio-last-run", result.id);
       setSelectedPlatform(result.drafts[0]?.platform || "");
       setTrend(result.selectedTrend);
       setStatus("reviewing");
@@ -91,7 +108,7 @@ export function Studio({ initialDifyConfigured }: { initialDifyConfigured: boole
 
   async function handleRevise() {
     if (!run) return;
-    if (!feedback.trim() && !verifiedCorrections.trim()) {
+    if (!feedback.trim() && !verifiedCorrections.trim() && !scoreFeedback.trim() && toneChoice === "保持原 tone" && trend === run.selectedTrend && !["reevaluate", "regenerate"].includes(revisionMode)) {
       setError("请填写修改意见，或补充已核实事实。");
       return;
     }
@@ -103,27 +120,22 @@ export function Studio({ initialDifyConfigured }: { initialDifyConfigured: boole
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          drafts: run.drafts,
+          runId: run.id,
+          expectedVersion: run.history?.length,
           feedback,
           verifiedCorrections,
+          scoreFeedback,
+          toneChoice,
+          trend,
+          revisionMode,
         }),
       });
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload.error || "二轮改稿失败。");
       }
-      setRun((current) =>
-        current
-          ? {
-              ...current,
-              drafts: payload.drafts,
-              score: payload.score,
-              stages: payload.stages,
-              summary: payload.summary,
-              status: "reviewing",
-            }
-          : current,
-      );
+      setRun(payload as RunResult);
+      setFeedback(""); setScoreFeedback(""); setVerifiedCorrections(""); setToneChoice("保持原 tone");
       setStatus("reviewing");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "二轮改稿失败。");
@@ -131,24 +143,31 @@ export function Studio({ initialDifyConfigured }: { initialDifyConfigured: boole
     }
   }
 
-  function handleApprove() {
+  async function handleApprove() {
     if (!run) return;
     const blocked = run.drafts.some((draft) =>
       draft.issues.some((issue) => issue.severity === "block"),
     );
-    if (blocked) {
+    if (blocked || !run.canApprove) {
       setError("存在拦截项，当前稿不能通过。请先按反馈修订。");
       return;
     }
     setError("");
-    setRun((current) => (current ? { ...current, status: "approved" } : current));
-    setStatus("approved");
+    await updateStatus("approved");
   }
 
-  function handleReject() {
+  async function handleReject() {
     if (!run) return;
-    setRun((current) => (current ? { ...current, status: "rejected" } : current));
-    setStatus("rejected");
+    await updateStatus("rejected");
+  }
+
+  async function updateStatus(next: "approved" | "rejected") {
+    if (!run) return;
+    try {
+      const response = await fetch(`/api/runs/${run.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: next, expectedVersion: run.history?.length }) });
+      const payload = await response.json(); if (!response.ok) throw new Error(payload.error);
+      setRun(payload); setStatus(next);
+    } catch (e) { setError(e instanceof Error ? e.message : "状态更新失败"); }
   }
 
   function handleExport(format: "md" | "json") {
@@ -213,6 +232,7 @@ export function Studio({ initialDifyConfigured }: { initialDifyConfigured: boole
             <BriefPanel value={input} onChange={patchInput} onRun={handleRun} running={busy} />
             <div className="min-w-0 space-y-4">
               <RunOverview run={run} status={status} />
+              {run && <EvidencePanel run={run} onExport={() => handleExport("json")} />}
               <DraftWorkspace
                 run={run}
                 status={status}
@@ -225,6 +245,10 @@ export function Studio({ initialDifyConfigured }: { initialDifyConfigured: boole
               draft={selectedDraft}
               status={status}
               feedback={feedback}
+              scoreFeedback={scoreFeedback}
+              onScoreFeedbackChange={setScoreFeedback}
+              revisionMode={revisionMode}
+              onRevisionModeChange={setRevisionMode}
               onFeedbackChange={setFeedback}
               verifiedCorrections={verifiedCorrections}
               onVerifiedChange={setVerifiedCorrections}

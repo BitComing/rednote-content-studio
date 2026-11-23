@@ -90,7 +90,7 @@ function DraftPanel({
           <div className="inline-flex rounded-md bg-secondary p-0.5">
             {[
               { value: "first" as const, label: "首轮" },
-              { value: "second" as const, label: "二轮" },
+              { value: "second" as const, label: "当前版本" },
               { value: "compare" as const, label: "对比" },
             ].map((item) => (
               <button
@@ -130,7 +130,7 @@ function DraftPanel({
         draft.secondRound ? (
           <DraftContent>{draft.secondRound}</DraftContent>
         ) : (
-          <EmptyDraft label="二轮稿尚未生成" />
+              <EmptyDraft label="修改稿尚未生成" />
         )
       ) : null}
       {view === "compare" ? (
@@ -144,7 +144,7 @@ function DraftPanel({
             </div>
             <div>
               <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium text-emerald-700">
-                <Columns2 className="h-3.5 w-3.5" /> 二轮
+                <Columns2 className="h-3.5 w-3.5" /> 当前版本
               </div>
               <DraftContent>{draft.secondRound}</DraftContent>
             </div>
@@ -162,7 +162,7 @@ function DraftPanel({
             className="max-w-[120px]"
             indicatorClassName={draft.score >= 90 ? "bg-emerald-600" : undefined}
           />
-          <span className="text-xs font-semibold">{draft.score || "—"}</span>
+          <span className="text-xs font-semibold">{draft.score >= 0 ? draft.score : "—"}</span>
         </div>
         <div className="flex items-center gap-1.5">
           {issues > 0 ? (

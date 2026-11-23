@@ -1,0 +1,14 @@
+[
+  {
+    "id": "replace-with-source-id",
+    "merchantId": "replace-with-merchant-id",
+    "scenarios": ["daily", "exam"],
+    "title": "请填写经商家确认的服务条款",
+    "source": "请填写商家授权材料的文件名、页码或记录编号",
+    "text": "请替换为可核实原文；该模板不会自动进入事实库。",
+    "kind": "fact",
+    "verified": false,
+    "verifiedAt": "",
+    "expiresAt": ""
+  }
+]

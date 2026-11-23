@@ -20,6 +20,7 @@ export async function POST(request: Request) {
     | {
         baseUrl?: string;
         apiKey?: string;
+        revisionApiKey?: string;
         user?: string;
         testOnly?: boolean;
       }
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    saveDifyConfig({ baseUrl: normalized, apiKey, user });
+    saveDifyConfig({ baseUrl: normalized, apiKey, user, revisionApiKey: body.revisionApiKey });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "保存配置失败。" },
