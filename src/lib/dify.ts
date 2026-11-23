@@ -21,20 +21,120 @@ export function splitPlatformContent(content: string, platforms: string[]) {
     return { platform, content: n < 0 ? (platforms.length === 1 ? content : "") : lines.slice(starts[n].index+1, starts[n+1]?.index ?? lines.length).join("\n").trim() };
   });
 }
+type WorkflowOutputs = Record<string, unknown>;
+
+/** 解析一行 SSE。Dify 的流式响应每行形如 `data: {"event":"...","data":{...}}`。 */
+function parseSseLine(line: string): Record<string, unknown> | null {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("data:")) return null;
+  const payload = trimmed.slice(5).trim();
+  if (!payload || payload === "[DONE]") return null;
+  try { return JSON.parse(payload) as Record<string, unknown>; } catch { return null; }
+}
+
+/**
+ * 兜底：如果某个网关把流式响应聚合成一个完整 JSON 返回，按 blocking 的结构解析。
+ * 正常情况不会走到这里。
+ */
+function parseBlockingJson(raw: string) {
+  if (!raw.trim().startsWith("{")) return null;
+  let payload: { data?: { status?: string; outputs?: WorkflowOutputs; error?: string }; workflow_run_id?: string } | null = null;
+  try { payload = JSON.parse(raw); } catch { return null; }
+  const data = payload?.data;
+  if (!data) return null;
+  if (String(data.status) !== "succeeded") throw new Error(data.error || `Dify 未完成：${data.status || "未知状态"}`);
+  const out = data.outputs;
+  if (!out) throw new Error("Dify 未返回输出结果。");
+  if (out.error) throw new Error(String(out.error));
+  if (typeof out.content !== "string" || !out.content.trim()) throw new Error("工作流未返回有效 content，请确认已导入并发布新版两阶段工作流。");
+  return { outputs: out, workflowRunId: String(payload?.workflow_run_id || "") };
+}
+
+/**
+ * 读完整个事件流，取 workflow_finished 里的 outputs。
+ * 过程中 Dify 会持续推送 node_started / text_chunk 等事件，连接不会空闲，
+ * 所以不会被网关按"长时间无响应"切断。
+ */
+async function readWorkflowStream(response: Response) {
+  if (!response.body) throw new Error("Dify 未返回可读取的响应流。");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const state: { runId: string; status: string; outputs?: WorkflowOutputs; error: string; failure: string } = { runId: "", status: "", error: "", failure: "" };
+  let buffer = "";
+  let rawAll = "";
+
+  const apply = (line: string) => {
+    const event = parseSseLine(line);
+    if (!event) return;
+    const runId = event.workflow_run_id;
+    if (typeof runId === "string" && runId) state.runId = runId;
+    if (event.event === "workflow_finished") {
+      const data = (event.data || {}) as Record<string, unknown>;
+      state.status = String(data.status || "");
+      state.error = data.error ? String(data.error) : "";
+      const out = data.outputs;
+      if (out && typeof out === "object") state.outputs = out as WorkflowOutputs;
+    } else if (event.event === "error") {
+      state.failure = String(event.message || event.code || "Dify 流式响应返回错误");
+    }
+  };
+
+  try {
+    while (!state.failure) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      rawAll += chunk;
+      buffer += chunk;
+      let index = buffer.indexOf("\n");
+      while (index >= 0) {
+        apply(buffer.slice(0, index));
+        buffer = buffer.slice(index + 1);
+        index = buffer.indexOf("\n");
+      }
+    }
+  } finally {
+    if (state.failure) await reader.cancel().catch(() => {});
+  }
+  const tail = decoder.decode();
+  rawAll += tail;
+  buffer += tail;
+  if (buffer.trim()) apply(buffer);
+
+  if (state.failure) throw new Error(state.failure);
+  if (!state.status) {
+    const fallback = parseBlockingJson(rawAll);
+    if (fallback) return fallback;
+    throw new Error("流式响应在结束前中断，未收到 workflow_finished，请重试。");
+  }
+  if (state.status !== "succeeded") throw new Error(state.error || `Dify 未完成：${state.status}`);
+  const outputs = state.outputs;
+  if (!outputs) throw new Error("Dify 未返回输出结果。");
+  if (outputs.error) throw new Error(String(outputs.error));
+  if (typeof outputs.content !== "string" || !outputs.content.trim()) throw new Error("工作流未返回有效 content，请确认已导入并发布新版两阶段工作流。");
+  return { outputs, workflowRunId: state.runId };
+}
+
 async function callWorkflow(inputs: object, revision = false) {
   const config = getDifyConfig();
   if (!config) throw new Error("尚未配置首轮 Dify 工作流。");
   const key = revision ? config.revisionApiKey : config.apiKey;
   if (!key) throw new Error("请在 Dify 设置中填写改稿工作流 API Key；真实任务不会退回演示改稿。");
+  // 用流式而不是 blocking：blocking 会把 HTTP 连接挂住等全流程结束，
+  // 云端网关（api.dify.ai 前面是 Cloudflare）约 100 秒就会掐断并回 504。
+  // 流式下服务端持续回传事件，连接保持活跃，最终结果在 workflow_finished 里。
   const response = await fetch(`${config.baseUrl}/workflows/run`, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ inputs, response_mode: "blocking", user: config.user }), cache: "no-store", signal: AbortSignal.timeout(240000) });
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(payload?.message || `Dify 请求失败 HTTP ${response.status}`);
-  if (payload?.data?.status !== "succeeded") throw new Error(payload?.data?.error || `Dify 未完成：${payload?.data?.status || "未知状态"}`);
-  const outputs = payload.data.outputs;
-  if (outputs?.error) throw new Error(outputs.error);
-  if (!outputs || typeof outputs.content !== "string" || !outputs.content.trim()) throw new Error("工作流未返回有效 content，请确认已导入并发布新版两阶段工作流。");
-  return { outputs, workflowRunId: String(payload.workflow_run_id || payload.data.id || "") };
+    body: JSON.stringify({ inputs, response_mode: "streaming", user: config.user }), cache: "no-store", signal: AbortSignal.timeout(600000) });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+    throw new Error(payload?.message || `Dify 请求失败 HTTP ${response.status}`);
+  }
+  try {
+    return await readWorkflowStream(response);
+  } catch (error) {
+    if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) throw new Error("Dify 超过 10 分钟仍未结束，已中断。");
+    throw error;
+  }
 }
 type Outputs = Record<string, unknown>;
 export function parseOutputs(outputs: Outputs, platforms: string[], previous?: RunResult) {

@@ -1,3 +1,6 @@
+// config.ts 在模块加载时就把 DIFY_CONFIG_PATH 固定下来了，所以必须在 require 之前设置；
+// 否则本机已保存的 .data/dify-config.json 会被读进测试，导致 fetch 打到真实地址。
+process.env.DIFY_CONFIG_PATH = require('node:path').join(__dirname, 'nonexistent-config.json');
 require('../scripts/register-ts.cjs');
 const { test } = require('node:test'); const assert = require('node:assert/strict'); const path = require('node:path');
 const { chooseRevisionRoute } = require('../src/lib/campus.ts');
@@ -38,5 +41,24 @@ test('real adapter sends latest copy, feedback, tone and cumulative facts to sec
     const wf=calls.filter(c=>c.url.includes('test.invalid'));assert.equal(wf.length,3);assert.equal(wf[0].auth,'Bearer test-first');assert.equal(wf[1].auth,'Bearer test-second');assert.equal(wf[1].body.inputs.revision_mode,'tone');assert.equal(wf[2].body.inputs.round1_content,'## 小红书\n修订稿，美式18元');assert.equal(wf[2].body.inputs.voice_and_tone,'专业可信 Professional');assert.equal(wf[2].body.inputs.draft,input.brief);assert.equal(c.history.length,3);assert.equal(c.history[0].content,'## 小红书\n美式18元');
     delete process.env.DIFY_REVISION_API_KEY; await assert.rejects(()=>reviseDifyWorkflow(request({run:c,feedback:'改稿'})),/改稿工作流 API Key/);
     process.env.EVAL_MODELS='deepseek/deepseek-v4-flash';const same=await evaluateOutput('x','x',{});assert.equal(same.judges[0].status,'error');
+  } finally {global.fetch=savedFetch; for(const k of Object.keys(process.env)) if(!(k in old)) delete process.env[k];Object.assign(process.env,old);}
+});
+test('streaming adapter reads the final result from workflow_finished instead of waiting on a blocking response',async()=>{
+  const savedFetch=global.fetch; const old={...process.env}; let requestedMode='';
+  Object.assign(process.env,{DIFY_API_BASE_URL:'https://stream.invalid/v1',DIFY_API_KEY:'test-stream',EVAL_MODELS:'judge-a,judge-b',EVAL_BASE_URL:'https://eval.invalid/v1',EVAL_API_KEY:'test-eval'});
+  const sse=[{event:'workflow_started',workflow_run_id:'wf-stream',data:{}},
+    {event:'node_started',workflow_run_id:'wf-stream',data:{title:'Create Content'}},
+    {event:'text_chunk',workflow_run_id:'wf-stream',data:{text:'## 小红书\n美式18元'}},
+    {event:'workflow_finished',workflow_run_id:'wf-stream',data:{status:'succeeded',outputs}}]
+    .map(e=>`data: ${JSON.stringify(e)}\n\n`).join('');
+  global.fetch=async(url,init)=>{
+    if(String(url).includes('stream.invalid')){ requestedMode=JSON.parse(init.body).response_mode; return new Response(sse,{status:200,headers:{'Content-Type':'text/event-stream'}}); }
+    return new Response(JSON.stringify({choices:[{message:{content:judge()}}]}),{status:200,headers:{'Content-Type':'application/json'}});
+  };
+  try { const run=await runDifyWorkflow(input);
+    assert.equal(requestedMode,'streaming');
+    assert.equal(run.workflowRunId,'wf-stream');
+    assert.equal(run.drafts[0].firstRound.trim(),'美式18元');
+    assert.equal(run.score,85);
   } finally {global.fetch=savedFetch; for(const k of Object.keys(process.env)) if(!(k in old)) delete process.env[k];Object.assign(process.env,old);}
 });

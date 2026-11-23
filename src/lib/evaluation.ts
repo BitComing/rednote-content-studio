@@ -5,13 +5,17 @@ export const RUBRIC_VERSION = "campus-rednote-v1";
 export function parseJudge(text: string, model: string, elapsedMs: number): JudgeResult {
   const raw = JSON.parse(text.trim().replace(/^```(?:json)?\s*|\s*```$/g, ""));
   if (!raw || !Array.isArray(raw.blocks) || !raw.blocks.every((x: unknown) => typeof x === "string")) throw new Error("评估缺少风险清单");
+  // 有些模型会省略 dimensions 这一层，把五个维度直接放在根对象上（字段集合、取值范围仍然严格校验）。
+  const dimensions = raw.dimensions && typeof raw.dimensions === "object" ? raw.dimensions : raw;
+  const reasons = raw.reasons && typeof raw.reasons === "object" ? raw.reasons : {};
   let score = 0;
   for (const [key, weight] of Object.entries(RUBRIC)) {
-    const value = raw.dimensions?.[key];
-    if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 5 || typeof raw.reasons?.[key] !== "string" || !raw.reasons[key].trim()) throw new Error(`评估维度不完整：${key}`);
+    const value = (dimensions as Record<string, unknown>)[key];
+    const reason = (reasons as Record<string, unknown>)[key];
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 5 || typeof reason !== "string" || !reason.trim()) throw new Error(`评估维度不完整：${key}`);
     score += value / 5 * weight;
   }
-  return { model, elapsedMs, status: "ok", score: Math.round(score * 10) / 10, dimensions: raw.dimensions, reasons: raw.reasons, blocks: raw.blocks };
+  return { model, elapsedMs, status: "ok", score: Math.round(score * 10) / 10, dimensions, reasons, blocks: raw.blocks };
 }
 export function aggregateJudges(judges: JudgeResult[], elapsedMs: number): Evaluation {
   const ok = judges.filter(j => j.status === "ok");
