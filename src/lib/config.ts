@@ -7,6 +7,7 @@ export interface DifyConfig {
   baseUrl: string;
   apiKey: string;
   revisionApiKey?: string;
+  analysisApiKey?: string;
   user: string;
   source: DifyConfigSource;
 }
@@ -18,6 +19,7 @@ export interface DifyStatus {
   source: "none" | DifyConfigSource;
   keyMasked: string;
   revisionConfigured?: boolean;
+  analysisConfigured?: boolean;
 }
 
 const CONFIG_PATH =
@@ -44,6 +46,7 @@ function readFileConfig(): Omit<DifyConfig, "source"> | null {
       baseUrl: normalizeBaseUrl(parsed.baseUrl),
       apiKey: parsed.apiKey,
       revisionApiKey: parsed.revisionApiKey || process.env.DIFY_REVISION_API_KEY,
+      analysisApiKey: parsed.analysisApiKey || process.env.DIFY_ANALYSIS_API_KEY,
       user: parsed.user || "content-studio",
     };
   } catch {
@@ -60,6 +63,7 @@ export function getDifyConfig(): DifyConfig | null {
       baseUrl: normalizeBaseUrl(process.env.DIFY_API_BASE_URL),
       apiKey: process.env.DIFY_API_KEY,
       revisionApiKey: process.env.DIFY_REVISION_API_KEY,
+      analysisApiKey: process.env.DIFY_ANALYSIS_API_KEY,
       user: process.env.DIFY_WORKFLOW_USER || "content-studio",
       source: "env",
     };
@@ -81,6 +85,7 @@ export function getDifyStatus(): DifyStatus {
     source: config.source,
     keyMasked: masked,
     revisionConfigured: Boolean(config.revisionApiKey),
+    analysisConfigured: Boolean(config.analysisApiKey),
   };
 }
 
@@ -88,6 +93,7 @@ export function saveDifyConfig(input: {
   baseUrl: string;
   apiKey: string;
   revisionApiKey?: string;
+  analysisApiKey?: string;
   user: string;
 }) {
   const existing = readFileConfig();
@@ -99,6 +105,11 @@ export function saveDifyConfig(input: {
     baseUrl: normalizeBaseUrl(input.baseUrl),
     apiKey,
     revisionApiKey: input.revisionApiKey?.trim() || existing?.revisionApiKey || process.env.DIFY_REVISION_API_KEY || "",
+    analysisApiKey:
+      input.analysisApiKey?.trim() ||
+      existing?.analysisApiKey ||
+      process.env.DIFY_ANALYSIS_API_KEY ||
+      "",
     user: input.user.trim() || "content-studio",
   };
   fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });

@@ -23,7 +23,7 @@ npm run dev -- --hostname 127.0.0.1
 1. 导入首轮，检查并配置模型供应商，发布，获得**首轮应用 Key**。模型保留原文件的 DeepSeek 配置，需要你的账户有对应模型权限。
 2. 导入改稿，在 Dify 环境变量设置 `FIRST_ROUND_API_BASE=https://api.dify.ai/v1`（不要末尾斜杠）和秘密变量 `FIRST_ROUND_API_KEY=首轮应用的 Key`。这个 Key 不能填写改稿应用自己的，否则会产生错误调用。
 3. 发布改稿应用，获得**改稿应用 Key**。
-4. 前端右上角 Dify 设置分别填写两枚 Key，也可复制 `.env.example` 为 `.env.local` 填写 `DIFY_API_KEY`、`DIFY_REVISION_API_KEY`。
+4. 前端右上角 Dify 设置分别填写首轮、改稿和账号评估三枚 Key，也可复制 `.env.example` 为 `.env.local` 填写 `DIFY_API_KEY`、`DIFY_REVISION_API_KEY`、`DIFY_ANALYSIS_API_KEY`。
 5. 页面设置的 Base URL、首轮 Key 优先于环境变量；改稿 Key 优先使用已保存页面值，其次使用环境变量。设置文件实际是本项目 `.data/dify-config.json`，不会返回明文密钥给浏览器。连接测试当前只测首轮 `/info`；改稿及首轮复用以实际运行验证。
 
 “重新生成”分支通过 Dify HTTP 节点调用已发布首轮 API，包含真正的跨工作流复用。首轮不重复内嵌到第二轮。**这不等于已经绑定了你工作区的原生 Workflow Tool 节点。** 若课程要求展示原生工具节点，见交付目录的《改造分析与配置说明》中绑定步骤；工作区工具 ID 必须在你的 Dify 中产生，文件不包含假 ID。
@@ -44,6 +44,14 @@ GENERATION_MODEL=deepseek-v4-flash
 采用**初稿和每版修改稿分开评估**。每个评估者看当前内容、事实材料和目标，不看旧分数。事实40%、风险25%、校园与平台适配15%、语气10%、清晰度10%；每项0–5分，总分由服务端计算。展示各模型分项理由、均分、最大分差、耗时。任何模型提出阻断风险、分差超过15分、评估失败或不足两个成功模型时，暂不能确认通过。外部评估是辅助证据，不是自动发布授权。
 
 内部 Dify 评审仍保留原有整包分数和规则检查；它不是外部模型均分，也不是每个平台独立评分。
+
+## 账号评估模块
+
+页面顶部切换到「账号评估」后，可填写小红书主页链接或 24 位用户编号、拉取笔记条数和商家备注，走独立工作流 `/api/account-analysis`。报告包含总分、五个分项、优势、问题和改进建议，可导出 Markdown。
+
+- 对应工作流 DSL 在 `../workflows/extra round - account analysis`，密钥填写 `DIFY_ANALYSIS_API_KEY`。
+- 账号评估与内容生成互不影响，不经过首轮/改稿工作流。
+- 每次评估会消耗 SocialToAI 积分；接口会针对 401/402/429 返回明确提示。
 
 ## 改稿方式
 

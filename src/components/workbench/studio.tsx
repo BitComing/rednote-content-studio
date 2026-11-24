@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, X } from "lucide-react";
 
+import { AccountAnalysisPanel } from "@/components/workbench/account-analysis-panel";
 import { BriefPanel } from "@/components/workbench/brief-panel";
 import { DifySettingsDialog } from "@/components/workbench/dify-settings-dialog";
 import { DraftWorkspace } from "@/components/workbench/draft-workspace";
@@ -20,8 +21,16 @@ import {
 import type { BriefInput, RevisionMode, RunResult, WorkspaceStatus } from "@/lib/types";
 import { downloadText } from "@/lib/utils";
 
-export function Studio({ initialDifyConfigured }: { initialDifyConfigured: boolean }) {
+export function Studio({
+  initialDifyConfigured,
+  initialAnalysisConfigured,
+}: {
+  initialDifyConfigured: boolean;
+  initialAnalysisConfigured: boolean;
+}) {
+  const [view, setView] = useState<"generate" | "analysis">("generate");
   const [difyConfigured, setDifyConfigured] = useState(initialDifyConfigured);
+  const [analysisConfigured, setAnalysisConfigured] = useState(initialAnalysisConfigured);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [input, setInput] = useState<BriefInput>({
     brief: DEFAULT_BRIEF,
@@ -202,6 +211,8 @@ export function Studio({ initialDifyConfigured }: { initialDifyConfigured: boole
     <TooltipProvider delayDuration={180}>
       <div className="min-h-screen">
         <TopBar
+          view={view}
+          onViewChange={setView}
           status={status}
           mode={run?.mode ?? (difyConfigured ? "dify" : "mock")}
           difyConfigured={difyConfigured}
@@ -228,47 +239,57 @@ export function Studio({ initialDifyConfigured }: { initialDifyConfigured: boole
         ) : null}
 
         <main className="mx-auto max-w-[1600px] px-3 py-4 sm:px-4 lg:px-5">
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[336px_minmax(0,1fr)_356px]">
-            <BriefPanel value={input} onChange={patchInput} onRun={handleRun} running={busy} />
-            <div className="min-w-0 space-y-4">
-              <RunOverview run={run} status={status} />
-              {run && <EvidencePanel run={run} onExport={() => handleExport("json")} />}
-              <DraftWorkspace
+          {view === "analysis" ? (
+            <AccountAnalysisPanel
+              configured={analysisConfigured}
+              onOpenSettings={() => setSettingsOpen(true)}
+            />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[336px_minmax(0,1fr)_356px]">
+              <BriefPanel value={input} onChange={patchInput} onRun={handleRun} running={busy} />
+              <div className="min-w-0 space-y-4">
+                <RunOverview run={run} status={status} />
+                {run && <EvidencePanel run={run} onExport={() => handleExport("json")} />}
+                <DraftWorkspace
+                  run={run}
+                  status={status}
+                  selectedPlatform={selectedPlatform}
+                  onSelectPlatform={setSelectedPlatform}
+                />
+              </div>
+              <ReviewPanel
                 run={run}
+                draft={selectedDraft}
                 status={status}
-                selectedPlatform={selectedPlatform}
-                onSelectPlatform={setSelectedPlatform}
+                feedback={feedback}
+                scoreFeedback={scoreFeedback}
+                onScoreFeedbackChange={setScoreFeedback}
+                revisionMode={revisionMode}
+                onRevisionModeChange={setRevisionMode}
+                onFeedbackChange={setFeedback}
+                verifiedCorrections={verifiedCorrections}
+                onVerifiedChange={setVerifiedCorrections}
+                toneChoice={toneChoice}
+                onToneChange={setToneChoice}
+                trend={trend}
+                onTrendChange={setTrend}
+                onRevise={handleRevise}
+                onApprove={handleApprove}
+                onReject={handleReject}
+                onExport={handleExport}
+                busy={busy}
               />
             </div>
-            <ReviewPanel
-              run={run}
-              draft={selectedDraft}
-              status={status}
-              feedback={feedback}
-              scoreFeedback={scoreFeedback}
-              onScoreFeedbackChange={setScoreFeedback}
-              revisionMode={revisionMode}
-              onRevisionModeChange={setRevisionMode}
-              onFeedbackChange={setFeedback}
-              verifiedCorrections={verifiedCorrections}
-              onVerifiedChange={setVerifiedCorrections}
-              toneChoice={toneChoice}
-              onToneChange={setToneChoice}
-              trend={trend}
-              onTrendChange={setTrend}
-              onRevise={handleRevise}
-              onApprove={handleApprove}
-              onReject={handleReject}
-              onExport={handleExport}
-              busy={busy}
-            />
-          </div>
+          )}
         </main>
 
         <DifySettingsDialog
           open={settingsOpen}
           onOpenChange={setSettingsOpen}
-          onStatusChange={setDifyConfigured}
+          onStatusChange={(configured, analysis) => {
+            setDifyConfigured(configured);
+            setAnalysisConfigured(analysis);
+          }}
         />
       </div>
     </TooltipProvider>

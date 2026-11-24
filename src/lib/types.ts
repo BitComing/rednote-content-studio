@@ -68,6 +68,8 @@ export interface RunStage {
 
 export interface TrendOption {
   label: string;
+  title?: string;
+  url?: string;
   heat: string;
 }
 
@@ -128,4 +130,29 @@ export interface RevisionResult {
   score: number;
   stages: RunStage[];
   summary: string;
+}
+
+export interface AccountAnalysisScores {
+  content: number | null;
+  interaction: number | null;
+  consistency: number | null;
+  topicStructure: number | null;
+  growthPotential: number | null;
+}
+
+export interface AccountAnalysisResult {
+  id: string;
+  startedAt: string;
+  elapsedMs: number;
+  account: string;
+  notesLimit: number;
+  merchantNote: string;
+  overallScore: number | null;
+  scores: AccountAnalysisScores;
+  strengths: string[];
+  problems: string[];
+  suggestions: string[];
+  benchmarkNote: string;
+  rawReport: string;
+  parsed: boolean;
 }

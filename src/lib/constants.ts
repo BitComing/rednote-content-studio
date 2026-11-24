@@ -17,6 +17,8 @@ export const LANGUAGES = ["简体中文", "English", "Français", "Deutsch"];
 export const DEFAULT_BANNED_WORDS =
   "保过,保证提分,全网最低,百分百有效,100%有效,guaranteed results";
 
+export const DEFAULT_TREND = "不附加热点";
+
 export function shortToneLabel(tone: string) {
   return tone.split(/\s+/)[0];
 }

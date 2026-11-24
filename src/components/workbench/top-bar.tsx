@@ -1,6 +1,14 @@
 "use client";
 
-import { Download, Loader2, PenLine, Play, Settings2, ShieldCheck } from "lucide-react";
+import {
+  BarChart3,
+  Download,
+  Loader2,
+  PenLine,
+  Play,
+  Settings2,
+  ShieldCheck,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +41,8 @@ const statusVariant: Record<WorkspaceStatus, "outline" | "info" | "warning" | "s
 };
 
 export function TopBar({
+  view,
+  onViewChange,
   status,
   mode,
   difyConfigured,
@@ -42,6 +52,8 @@ export function TopBar({
   onExport,
   onOpenSettings,
 }: {
+  view: "generate" | "analysis";
+  onViewChange: (view: "generate" | "analysis") => void;
   status: WorkspaceStatus;
   mode: RunMode | null;
   difyConfigured: boolean;
@@ -66,14 +78,51 @@ export function TopBar({
           </div>
         </div>
 
-        <div className="ml-2 hidden items-center gap-1.5 md:flex">
-          <Badge variant={statusVariant[status]}>{statusLabel[status]}</Badge>
-          {mode ? (
-            <Badge variant={mode === "dify" ? "info" : "outline"}>
-              {mode === "dify" ? "Dify API" : "演示模式"}
-            </Badge>
-          ) : null}
+        <div className="ml-1 flex shrink-0 items-center rounded-md bg-secondary p-0.5">
+          <button
+            type="button"
+            onClick={() => onViewChange("generate")}
+            className={cn(
+              "flex items-center gap-1 rounded-sm px-2.5 py-1 text-[11px] font-medium transition-colors",
+              view === "generate"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <PenLine className="h-3 w-3" />
+            <span className="hidden sm:inline">内容生成</span>
+            <span className="sm:hidden">生成</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onViewChange("analysis")}
+            className={cn(
+              "flex items-center gap-1 rounded-sm px-2.5 py-1 text-[11px] font-medium transition-colors",
+              view === "analysis"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <BarChart3 className="h-3 w-3" />
+            <span className="hidden sm:inline">账号评估</span>
+            <span className="sm:hidden">评估</span>
+          </button>
         </div>
+
+        {view === "generate" ? (
+          <div className="ml-2 hidden items-center gap-1.5 md:flex">
+            <Badge variant={statusVariant[status]}>{statusLabel[status]}</Badge>
+            {mode ? (
+              <Badge variant={mode === "dify" ? "info" : "outline"}>
+                {mode === "dify" ? "Dify API" : "演示模式"}
+              </Badge>
+            ) : null}
+          </div>
+        ) : (
+          <Badge variant="info" className="ml-2 hidden md:inline-flex">
+            独立工作流
+          </Badge>
+        )}
 
         <div className="ml-auto flex items-center gap-1.5">
           <Tooltip>
@@ -115,43 +164,49 @@ export function TopBar({
             <TooltipContent>Dify 连接设置</TooltipContent>
           </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onExport}
-                disabled={!canExport}
-                aria-label="导出结果"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>导出当前结果</TooltipContent>
-          </Tooltip>
+          {view === "generate" ? (
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onExport}
+                    disabled={!canExport}
+                    aria-label="导出结果"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>导出当前结果</TooltipContent>
+              </Tooltip>
 
-          <Button
-            onClick={onRun}
-            disabled={running}
-            className="min-w-[76px]"
-            aria-label={running ? "运行中" : "运行"}
-          >
-            {running ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Play className="h-4 w-4" />
-            )}
-            <span className="hidden sm:inline">{running ? "运行中" : "运行"}</span>
-          </Button>
+              <Button
+                onClick={onRun}
+                disabled={running}
+                className="min-w-[76px]"
+                aria-label={running ? "运行中" : "运行"}
+              >
+                {running ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">{running ? "运行中" : "运行"}</span>
+              </Button>
+            </>
+          ) : null}
         </div>
       </div>
-      <div className="flex items-center gap-2 border-t px-3 py-1.5 text-[11px] text-muted-foreground md:hidden">
-        <ShieldCheck className="h-3.5 w-3.5" />
-        <span>发布前需人工确认</span>
-        <Badge variant={statusVariant[status]} className="ml-auto">
-          {statusLabel[status]}
-        </Badge>
-      </div>
+      {view === "generate" ? (
+        <div className="flex items-center gap-2 border-t px-3 py-1.5 text-[11px] text-muted-foreground md:hidden">
+          <ShieldCheck className="h-3.5 w-3.5" />
+          <span>发布前需人工确认</span>
+          <Badge variant={statusVariant[status]} className="ml-auto">
+            {statusLabel[status]}
+          </Badge>
+        </div>
+      ) : null}
     </header>
   );
 }

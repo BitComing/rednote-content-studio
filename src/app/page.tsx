@@ -4,5 +4,11 @@ import { getDifyStatus } from "@/lib/config";
 export const dynamic = "force-dynamic";
 
 export default function Page() {
-  return <Studio initialDifyConfigured={getDifyStatus().configured} />;
+  const status = getDifyStatus();
+  return (
+    <Studio
+      initialDifyConfigured={status.configured}
+      initialAnalysisConfigured={Boolean(status.analysisConfigured)}
+    />
+  );
 }

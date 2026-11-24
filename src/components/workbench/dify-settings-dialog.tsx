@@ -33,6 +33,7 @@ interface DifyStatus {
   source: "none" | "file" | "env";
   keyMasked: string;
   revisionConfigured?: boolean;
+  analysisConfigured?: boolean;
 }
 
 type Message = { type: "success" | "warning" | "error"; text: string } | null;
@@ -52,12 +53,13 @@ export function DifySettingsDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onStatusChange: (configured: boolean) => void;
+  onStatusChange: (configured: boolean, analysisConfigured: boolean) => void;
 }) {
   const [status, setStatus] = useState<DifyStatus>(emptyStatus);
   const [baseUrl, setBaseUrl] = useState("https://api.dify.ai/v1");
   const [apiKey, setApiKey] = useState("");
   const [revisionApiKey, setRevisionApiKey] = useState("");
+  const [analysisApiKey, setAnalysisApiKey] = useState("");
   const [user, setUser] = useState("content-studio");
   const [showKey, setShowKey] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -75,6 +77,7 @@ export function DifySettingsDialog({
         setUser(payload.user || "content-studio");
         setApiKey("");
         setRevisionApiKey("");
+        setAnalysisApiKey("");
       })
       .catch(() => {
         setMessage({ type: "error", text: "读取当前配置失败。" });
@@ -93,6 +96,7 @@ export function DifySettingsDialog({
           baseUrl,
           apiKey,
           revisionApiKey,
+          analysisApiKey,
           user,
           testOnly: action === "test",
         }),
@@ -109,7 +113,11 @@ export function DifySettingsDialog({
       setStatus(payload.status);
       setApiKey("");
       setRevisionApiKey("");
-      onStatusChange(Boolean(payload.status.configured));
+      setAnalysisApiKey("");
+      onStatusChange(
+        Boolean(payload.status.configured),
+        Boolean(payload.status.analysisConfigured),
+      );
       if (action === "test") {
         setMessage({ type: "success", text: payload.message });
       } else {
@@ -141,7 +149,11 @@ export function DifySettingsDialog({
       setBaseUrl(payload.status.baseUrl || "https://api.dify.ai/v1");
       setUser(payload.status.user || "content-studio");
       setApiKey("");
-      onStatusChange(Boolean(payload.status.configured));
+      setAnalysisApiKey("");
+      onStatusChange(
+        Boolean(payload.status.configured),
+        Boolean(payload.status.analysisConfigured),
+      );
       setMessage({
         type: payload.status.configured ? "warning" : "success",
         text: payload.status.configured
@@ -234,6 +246,9 @@ export function DifySettingsDialog({
             <label htmlFor="revision-key" className="text-xs font-medium">改稿工作流 API Key</label>
             <Input id="revision-key" type="password" value={revisionApiKey} onChange={event => setRevisionApiKey(event.target.value)} placeholder={status.revisionConfigured ? "已配置，留空保留" : "第二个应用的 app-..."} autoComplete="off" />
             <p className="text-[10px] text-muted-foreground">两个工作流分别发布，分别填写密钥。测试连接仅检测首轮。</p>
+            <label htmlFor="analysis-key" className="text-xs font-medium">账号评估工作流 API Key</label>
+            <Input id="analysis-key" type="password" value={analysisApiKey} onChange={event => setAnalysisApiKey(event.target.value)} placeholder={status.analysisConfigured ? "已配置，留空保留" : "评估应用的 app-..."} autoComplete="off" />
+            <p className="text-[10px] text-muted-foreground">账号评估与生成流程独立，每次评估会消耗 SocialToAI 积分。</p>
             <label htmlFor="dify-user" className="text-xs font-medium">
               User 标识
             </label>

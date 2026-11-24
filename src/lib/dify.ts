@@ -3,9 +3,10 @@ import { getDifyConfig } from "./config";
 import { chooseRevisionRoute } from "./campus";
 import { retrieveKnowledge, knowledgeText } from "./knowledge";
 import { evaluateOutput } from "./evaluation";
-import type { BriefInput, Claim, PlatformDraft, ReviewIssue, RevisionRequest, RunResult, VersionRecord } from "./types";
+import type { AccountAnalysisResult, AccountAnalysisScores, BriefInput, Claim, PlatformDraft, ReviewIssue, RevisionRequest, RunResult, VersionRecord } from "./types";
 
 export function hasDifyConfig() { return Boolean(getDifyConfig()); }
+export function hasAnalysisConfig() { return Boolean(getDifyConfig()?.analysisApiKey); }
 export function packContent(run: RunResult) { return run.drafts.map(d => `## ${d.platform}\n${d.secondRound ?? d.firstRound}`).join("\n\n"); }
 export function splitPlatformContent(content: string, platforms: string[]) {
   // Only target-platform headings delimit posts. Internal headings stay within a post.
@@ -36,7 +37,7 @@ function parseSseLine(line: string): Record<string, unknown> | null {
  * 兜底：如果某个网关把流式响应聚合成一个完整 JSON 返回，按 blocking 的结构解析。
  * 正常情况不会走到这里。
  */
-function parseBlockingJson(raw: string) {
+function parseBlockingJson(raw: string, requireContent = true) {
   if (!raw.trim().startsWith("{")) return null;
   let payload: { data?: { status?: string; outputs?: WorkflowOutputs; error?: string }; workflow_run_id?: string } | null = null;
   try { payload = JSON.parse(raw); } catch { return null; }
@@ -46,7 +47,7 @@ function parseBlockingJson(raw: string) {
   const out = data.outputs;
   if (!out) throw new Error("Dify 未返回输出结果。");
   if (out.error) throw new Error(String(out.error));
-  if (typeof out.content !== "string" || !out.content.trim()) throw new Error("工作流未返回有效 content，请确认已导入并发布新版两阶段工作流。");
+  if (requireContent && (typeof out.content !== "string" || !out.content.trim())) throw new Error("工作流未返回有效 content，请确认已导入并发布新版两阶段工作流。");
   return { outputs: out, workflowRunId: String(payload?.workflow_run_id || "") };
 }
 
@@ -55,7 +56,7 @@ function parseBlockingJson(raw: string) {
  * 过程中 Dify 会持续推送 node_started / text_chunk 等事件，连接不会空闲，
  * 所以不会被网关按"长时间无响应"切断。
  */
-async function readWorkflowStream(response: Response) {
+async function readWorkflowStream(response: Response, requireContent = true) {
   if (!response.body) throw new Error("Dify 未返回可读取的响应流。");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -103,7 +104,7 @@ async function readWorkflowStream(response: Response) {
 
   if (state.failure) throw new Error(state.failure);
   if (!state.status) {
-    const fallback = parseBlockingJson(rawAll);
+    const fallback = parseBlockingJson(rawAll, requireContent);
     if (fallback) return fallback;
     throw new Error("流式响应在结束前中断，未收到 workflow_finished，请重试。");
   }
@@ -111,28 +112,32 @@ async function readWorkflowStream(response: Response) {
   const outputs = state.outputs;
   if (!outputs) throw new Error("Dify 未返回输出结果。");
   if (outputs.error) throw new Error(String(outputs.error));
-  if (typeof outputs.content !== "string" || !outputs.content.trim()) throw new Error("工作流未返回有效 content，请确认已导入并发布新版两阶段工作流。");
+  if (requireContent && (typeof outputs.content !== "string" || !outputs.content.trim())) throw new Error("工作流未返回有效 content，请确认已导入并发布新版两阶段工作流。");
   return { outputs, workflowRunId: state.runId };
 }
 
-async function callWorkflow(inputs: object, revision = false) {
+async function callWorkflow(
+  inputs: object,
+  revision = false,
+  options: { key?: string; timeoutMs?: number; requireContent?: boolean } = {},
+) {
   const config = getDifyConfig();
   if (!config) throw new Error("尚未配置首轮 Dify 工作流。");
-  const key = revision ? config.revisionApiKey : config.apiKey;
+  const key = options.key || (revision ? config.revisionApiKey : config.apiKey);
   if (!key) throw new Error("请在 Dify 设置中填写改稿工作流 API Key；真实任务不会退回演示改稿。");
   // 用流式而不是 blocking：blocking 会把 HTTP 连接挂住等全流程结束，
   // 云端网关（api.dify.ai 前面是 Cloudflare）约 100 秒就会掐断并回 504。
   // 流式下服务端持续回传事件，连接保持活跃，最终结果在 workflow_finished 里。
   const response = await fetch(`${config.baseUrl}/workflows/run`, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ inputs, response_mode: "streaming", user: config.user }), cache: "no-store", signal: AbortSignal.timeout(600000) });
+    body: JSON.stringify({ inputs, response_mode: "streaming", user: config.user }), cache: "no-store", signal: AbortSignal.timeout(options.timeoutMs ?? 600000) });
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { message?: string } | null;
     throw new Error(payload?.message || `Dify 请求失败 HTTP ${response.status}`);
   }
   try {
-    return await readWorkflowStream(response);
+    return await readWorkflowStream(response, options.requireContent ?? true);
   } catch (error) {
-    if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) throw new Error("Dify 超过 10 分钟仍未结束，已中断。");
+    if (error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")) throw new Error(`Dify 超过 ${Math.round((options.timeoutMs ?? 600000) / 60000)} 分钟仍未结束，已中断。`);
     throw error;
   }
 }
@@ -203,4 +208,160 @@ export async function reviseDifyWorkflow(req: RevisionRequest): Promise<RunResul
     documents: outputs.documents_text ? String(outputs.documents_text) : prior.documents, selectedTrend: req.trend, workflowRunId, route,
     stages: [{ id: "revise", label: route === "reevaluate" ? "仅重新评分" : "按反馈改稿", detail: `${route} · 基于当前版本`, status: "done" }, { id: "human", label: "人工审核", detail: "等待确认", status: "running" }] };
   return finish(run, started, { route, feedback: req.feedback, scoreFeedback: req.scoreFeedback, corrections: req.verifiedCorrections, tone, trend: req.trend, workflowRunId });
+}
+
+function toScore(value: unknown) {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric) || numeric < 0 || numeric > 100) return null;
+  return Math.round(numeric);
+}
+
+function parseEvaluation(text: string) {
+  try {
+    const data = JSON.parse(text) as unknown;
+    if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+    const record = data as Record<string, unknown>;
+    const hasScore = "overall_score" in record || "dimension_scores" in record;
+    return hasScore ? record : null;
+  } catch {
+    return null;
+  }
+}
+
+function findMatchingBrace(text: string, start: number) {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === "{") depth += 1;
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return index;
+    }
+  }
+  return -1;
+}
+
+/**
+ * 评估工作流的 report 输出可能混入模型的思考过程或代码块标记，
+ * 这里取返回文本里最后一个合法的评估 JSON 对象。
+ */
+function extractEvaluation(raw: string) {
+  const cleaned = raw
+    .replace(/<!--dify-deepseek-reasoning-->/g, "")
+    .replace(/```(?:json)?/gi, "")
+    .replace(/<\/?think(?:ing)?>/gi, "")
+    .trim();
+
+  const direct = parseEvaluation(cleaned);
+  if (direct) return direct;
+
+  let result: Record<string, unknown> | null = null;
+  let index = cleaned.indexOf("{");
+  while (index >= 0) {
+    const end = findMatchingBrace(cleaned, index);
+    if (end > index) {
+      const parsed = parseEvaluation(cleaned.slice(index, end + 1));
+      if (parsed) result = parsed;
+    }
+    index = cleaned.indexOf("{", index + 1);
+  }
+  return result;
+}
+
+function toStringList(value: unknown, limit = 5) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
+    .map((item) => item.trim())
+    .slice(0, limit);
+}
+
+export async function runAccountAnalysis(input: {
+  accountUrl: string;
+  notesLimit: string;
+  merchantNote: string;
+}): Promise<AccountAnalysisResult> {
+  const config = getDifyConfig();
+  if (!config?.analysisApiKey) {
+    throw new Error("尚未配置账号评估工作流 API Key。请在右上角 Dify 设置里填写。");
+  }
+
+  const startedAt = new Date().toISOString();
+  const started = Date.now();
+  const limit = Math.max(1, Math.min(Number.parseInt(input.notesLimit, 10) || 20, 100));
+
+  let outputs: WorkflowOutputs;
+  try {
+    const result = await callWorkflow(
+      {
+        account_url: input.accountUrl.trim(),
+        notes_limit: String(limit),
+        merchant_note: input.merchantNote.trim(),
+      },
+      false,
+      { key: config.analysisApiKey, timeoutMs: 300000, requireContent: false },
+    );
+    outputs = result.outputs;
+  } catch (error) {
+    throw new Error(friendlyAnalysisError(error));
+  }
+
+  const rawReport = String(outputs.report ?? "").trim();
+  if (!rawReport) {
+    throw new Error("账号评估工作流没有返回报告内容。");
+  }
+
+  const evaluation = extractEvaluation(rawReport);
+  const dimensionRaw = (evaluation?.dimension_scores ?? {}) as Record<string, unknown>;
+  const scores: AccountAnalysisScores = {
+    content: toScore(dimensionRaw.content),
+    interaction: toScore(dimensionRaw.interaction),
+    consistency: toScore(dimensionRaw.consistency),
+    topicStructure: toScore(dimensionRaw.topic_structure),
+    growthPotential: toScore(dimensionRaw.growth_potential),
+  };
+
+  return {
+    id: `A-${String(Date.now()).slice(-6)}`,
+    startedAt,
+    elapsedMs: Date.now() - started,
+    account: input.accountUrl.trim(),
+    notesLimit: limit,
+    merchantNote: input.merchantNote.trim(),
+    overallScore: toScore(evaluation?.overall_score),
+    scores,
+    strengths: toStringList(evaluation?.strengths),
+    problems: toStringList(evaluation?.problems),
+    suggestions: toStringList(evaluation?.suggestions, 6),
+    benchmarkNote:
+      typeof evaluation?.benchmark_note === "string" ? evaluation.benchmark_note.trim() : "",
+    rawReport: evaluation ? JSON.stringify(evaluation, null, 2) : rawReport,
+    parsed: Boolean(evaluation),
+  } satisfies AccountAnalysisResult;
+}
+
+function friendlyAnalysisError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (/\b402\b/.test(message)) {
+    return "SocialToAI 积分不足（402），本次无法拉取笔记。请到 socialtoai.com 控制台充值或升级套餐后重试；单次评估约消耗 12 积分。";
+  }
+  if (/\b401\b/.test(message)) {
+    return "SocialToAI 或 Dify 鉴权失败（401），请检查工作流里的 SocialToAI API Key 是否有效。";
+  }
+  if (/\b429\b/.test(message)) {
+    return "请求过于频繁（429），请稍等片刻再试。";
+  }
+  return message;
 }
