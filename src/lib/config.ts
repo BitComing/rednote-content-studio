@@ -6,6 +6,7 @@ export type DifyConfigSource = "file" | "env";
 export interface DifyConfig {
   baseUrl: string;
   apiKey: string;
+  revisionApiKey?: string;
   user: string;
   source: DifyConfigSource;
 }
@@ -16,6 +17,7 @@ export interface DifyStatus {
   user: string;
   source: "none" | DifyConfigSource;
   keyMasked: string;
+  revisionConfigured?: boolean;
 }
 
 const CONFIG_PATH =
@@ -41,6 +43,7 @@ function readFileConfig(): Omit<DifyConfig, "source"> | null {
     return {
       baseUrl: normalizeBaseUrl(parsed.baseUrl),
       apiKey: parsed.apiKey,
+      revisionApiKey: parsed.revisionApiKey || process.env.DIFY_REVISION_API_KEY,
       user: parsed.user || "content-studio",
     };
   } catch {
@@ -56,6 +59,7 @@ export function getDifyConfig(): DifyConfig | null {
     return {
       baseUrl: normalizeBaseUrl(process.env.DIFY_API_BASE_URL),
       apiKey: process.env.DIFY_API_KEY,
+      revisionApiKey: process.env.DIFY_REVISION_API_KEY,
       user: process.env.DIFY_WORKFLOW_USER || "content-studio",
       source: "env",
     };
@@ -76,12 +80,14 @@ export function getDifyStatus(): DifyStatus {
     user: config.user,
     source: config.source,
     keyMasked: masked,
+    revisionConfigured: Boolean(config.revisionApiKey),
   };
 }
 
 export function saveDifyConfig(input: {
   baseUrl: string;
   apiKey: string;
+  revisionApiKey?: string;
   user: string;
 }) {
   const existing = readFileConfig();
@@ -92,6 +98,7 @@ export function saveDifyConfig(input: {
   const config = {
     baseUrl: normalizeBaseUrl(input.baseUrl),
     apiKey,
+    revisionApiKey: input.revisionApiKey?.trim() || existing?.revisionApiKey || process.env.DIFY_REVISION_API_KEY || "",
     user: input.user.trim() || "content-studio",
   };
   fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });

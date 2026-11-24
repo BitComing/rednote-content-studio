@@ -59,7 +59,7 @@ export function TopBar({
             <PenLine className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold leading-5">内容工作台</div>
+            <div className="truncate text-sm font-semibold leading-5">校园商家内容工作台</div>
             <div className="hidden truncate text-[11px] leading-4 text-muted-foreground sm:block">
               Rednote Content Studio
             </div>

@@ -22,8 +22,9 @@ import { Select } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { shortToneLabel, TONES } from "@/lib/constants";
-import type { PlatformDraft, RunResult, WorkspaceStatus } from "@/lib/types";
+import type { PlatformDraft, RevisionMode, RunResult, WorkspaceStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { TrendPicker } from "./trend-picker";
 
 const claimVariant = {
   supported: "success" as const,
@@ -61,15 +62,15 @@ function ScoreBlock({ draft, run }: { draft: PlatformDraft | null; run: RunResul
     <div className="rounded-md border bg-muted/20 p-3">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <div className="text-[11px] text-muted-foreground">AI 评分</div>
+          <div className="text-[11px] text-muted-foreground">工作流内部评审（整包分数）</div>
           <div className="mt-1 flex items-baseline gap-1">
-            <span className="text-3xl font-semibold tracking-normal">{score > 0 ? score : "—"}</span>
+            <span className="text-3xl font-semibold tracking-normal">{score >= 0 ? score : "—"}</span>
             <span className="text-[11px] text-muted-foreground">/ 100</span>
           </div>
         </div>
         <Badge variant={hasSecond ? "success" : "info"}>
           <TrendingUp className="h-3 w-3" />
-          {hasSecond ? "二轮复评" : "首轮评审"}
+          {hasSecond ? "当前版本复评" : "首轮评审"}
         </Badge>
       </div>
       <Progress
@@ -87,6 +88,10 @@ export function ReviewPanel({
   draft,
   status,
   feedback,
+  scoreFeedback,
+  onScoreFeedbackChange,
+  revisionMode,
+  onRevisionModeChange,
   onFeedbackChange,
   verifiedCorrections,
   onVerifiedChange,
@@ -104,6 +109,10 @@ export function ReviewPanel({
   draft: PlatformDraft | null;
   status: WorkspaceStatus;
   feedback: string;
+  scoreFeedback: string;
+  onScoreFeedbackChange: (value: string) => void;
+  revisionMode: RevisionMode;
+  onRevisionModeChange: (value: RevisionMode) => void;
   onFeedbackChange: (value: string) => void;
   verifiedCorrections: string;
   onVerifiedChange: (value: string) => void;
@@ -123,7 +132,7 @@ export function ReviewPanel({
         <CardContent className="flex min-h-[360px] flex-col items-center justify-center gap-3">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
           <div className="text-sm font-medium">
-            {status === "revising" ? "正在生成第二轮" : "正在执行安全检查"}
+            {status === "revising" ? "正在按所选路径处理" : "正在执行安全检查"}
           </div>
           <div className="text-[11px] text-muted-foreground">结果完成后可在这里审核</div>
         </CardContent>
@@ -186,20 +195,8 @@ export function ReviewPanel({
           <label htmlFor="trend" className="text-xs font-medium">
             本次热点
           </label>
-          {run.trendOptions.length > 1 ? (
-            <Select id="trend" value={trend} onChange={(event) => onTrendChange(event.target.value)}>
-              {run.trendOptions.map((option) => (
-                <option key={option.label} value={option.label}>
-                  {option.label}
-                  {option.heat ? ` · 热度 ${option.heat}` : ""}
-                </option>
-              ))}
-            </Select>
-          ) : (
-            <div className="rounded-md border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-              {trend}
-            </div>
-          )}
+          <TrendPicker value={trend} onChange={onTrendChange} />
+
         </div>
 
         <div className="space-y-2">
@@ -319,9 +316,20 @@ export function ReviewPanel({
           </div>
         ) : (
           <div className="space-y-3">
+            <label className="block space-y-1 text-xs">修改范围
+              <Select value={revisionMode} onChange={e => onRevisionModeChange(e.target.value as RevisionMode)}>
+                <option value="auto">自动分流（混合反馈走局部改稿）</option>
+                <option value="tone">只调整语气</option><option value="content">局部内容 / 话题调整</option>
+                <option value="facts">纠正已核实事实</option><option value="reevaluate">仅重新评分（不改文案）</option>
+                <option value="regenerate">重新生成（调用首轮工具）</option>
+              </Select>
+            </label>
+            <label className="block space-y-1 text-xs">评分异议
+              <Textarea value={scoreFeedback} onChange={e => onScoreFeedbackChange(e.target.value)} placeholder="说明哪个判断不合理及原因；不会因要求高分而加分" />
+            </label>
             <div className="space-y-1.5">
               <label htmlFor="tone-choice" className="text-xs font-medium">
-                二轮 tone
+                本次改稿语气
               </label>
               <Select
                 id="tone-choice"
@@ -366,13 +374,13 @@ export function ReviewPanel({
             <div className="grid gap-2">
               <Button
                 onClick={onRevise}
-                disabled={busy || (!feedback.trim() && !verifiedCorrections.trim())}
+                disabled={busy}
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                {hasSecond ? "再次生成第二轮" : "按反馈生成第二轮"}
+                {`提交处理 · 版本 ${(run.history?.length || 1) + 1}`}
               </Button>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="success" onClick={onApprove} disabled={busy}>
+                <Button variant="success" onClick={onApprove} disabled={busy || !run.canApprove}>
                   <Check className="h-4 w-4" />
                   通过当前稿
                 </Button>
@@ -383,7 +391,7 @@ export function ReviewPanel({
               </div>
             </div>
             <p className="text-[10px] leading-4 text-muted-foreground">
-              通过按钮只接受当前稿，不会应用修改意见。存在拦截项时不会释放最终内容。
+              通过只确认当前稿，不会应用尚未提交的修改。存在拦截项或外部评估缺失时不能通过；草稿仍可导出供检查。
             </p>
           </div>
         )}
