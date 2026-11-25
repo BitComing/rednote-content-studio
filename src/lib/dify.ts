@@ -3,11 +3,21 @@ import { getDifyConfig } from "./config";
 import { chooseRevisionRoute } from "./campus";
 import { retrieveKnowledge, knowledgeText } from "./knowledge";
 import { evaluateOutput } from "./evaluation";
-import type { AccountAnalysisResult, AccountAnalysisScores, BriefInput, Claim, PlatformDraft, ReviewIssue, RevisionRequest, RunResult, VersionRecord } from "./types";
+import type { AccountAnalysisResult, AccountAnalysisScores, BriefInput, Claim, KnowledgeHit, PlatformDraft, ReviewIssue, RevisionRequest, RunResult, VersionRecord } from "./types";
 
 export function hasDifyConfig() { return Boolean(getDifyConfig()); }
 export function hasAnalysisConfig() { return Boolean(getDifyConfig()?.analysisApiKey); }
 export function packContent(run: RunResult) { return run.drafts.map(d => `## ${d.platform}\n${d.secondRound ?? d.firstRound}`).join("\n\n"); }
+function mergeVerifiedFacts(brief: string, knowledge: KnowledgeHit[]) {
+  const facts = knowledgeText(knowledge, "fact").trim();
+  if (!facts) return brief;
+  return `${brief.trim()}\n\n【已核实补充资料】\n${facts}`.slice(0, 12000);
+}
+function mergeScenarioGuidance(toneDetails: string, knowledge: KnowledgeHit[]) {
+  const guidance = knowledgeText(knowledge, "guidance").trim();
+  if (!guidance) return toneDetails;
+  return `${toneDetails.trim()}\n\n【场景写作要求（非事实依据）】\n${guidance}`.trim().slice(0, 2000);
+}
 export function splitPlatformContent(content: string, platforms: string[]) {
   // Only target-platform headings delimit posts. Internal headings stay within a post.
   const lines = content.split("\n");
@@ -163,7 +173,7 @@ export function parseOutputs(outputs: Outputs, platforms: string[], previous?: R
 async function finish(run: RunResult, started: number, record: Omit<VersionRecord, "version" | "content" | "createdAt" | "elapsedMs" | "evaluation" | "internalScore" | "reviewJson">) {
   const content = packContent(run);
   run.evaluation = await evaluateOutput(content, [run.briefSnapshot?.brief, run.documents, run.verifiedFacts].filter(Boolean).join("\n"), {
-    scenario: run.briefSnapshot?.scenario, platforms: run.briefSnapshot?.platforms, tone: run.effectiveTone,
+    platforms: run.briefSnapshot?.platforms, tone: run.effectiveTone,
     toneDetails: run.briefSnapshot?.toneDetails, language: run.briefSnapshot?.language, bannedWords: run.briefSnapshot?.bannedWords,
     trend: run.selectedTrend, editorialGuidance: knowledgeText(run.knowledge || [], "guidance"),
   });
@@ -177,12 +187,13 @@ async function finish(run: RunResult, started: number, record: Omit<VersionRecor
 }
 export async function runDifyWorkflow(input: BriefInput): Promise<RunResult> {
   const started = Date.now();
-  const knowledge = retrieveKnowledge(input.merchantId || "", input.scenario || "daily");
-  const facts = knowledgeText(knowledge, "fact");
-  const { outputs, workflowRunId } = await callWorkflow({ draft: input.brief, user_file: input.files.map(file => ({ type: file.type, transfer_method: "local_file", upload_file_id: file.id })),
-    voice_and_tone: input.tone, platform: input.platforms.join("、"), language: input.language, tone_details: input.toneDetails, banned_words: input.bannedWords,
-    selected_trend: input.selectedTrend || "不附加热点", trend_json: input.trendJson || '{"attached":false}', scenario: input.scenario || "daily",
-    campus_guidance: knowledgeText(knowledge, "guidance"), knowledge_facts: facts, documents: "" });
+  const knowledge = retrieveKnowledge(input.merchantId || "");
+  // 新版工作流只接收 Start 节点声明的字段；本地场景指引与已核实事实分别并入 tone_details 和 draft。
+  const { outputs, workflowRunId } = await callWorkflow({ draft: mergeVerifiedFacts(input.brief, knowledge),
+    user_file: input.files.map(file => ({ type: file.type, transfer_method: "local_file", upload_file_id: file.id })),
+    voice_and_tone: input.tone, platform: input.platforms.join("、"), language: input.language,
+    tone_details: mergeScenarioGuidance(input.toneDetails, knowledge), banned_words: input.bannedWords,
+    selected_trend: input.selectedTrend || "不附加热点", trend_json: input.trendJson || '{"attached":false}' });
   const run: RunResult = { ...parseOutputs(outputs, input.platforms), id: randomUUID(), mode: "dify", startedAt: new Date(started).toISOString(),
     stages: [{ id: "draft", label: "首轮生成", detail: "首轮工作流已完成", status: "done" }, { id: "human", label: "人工审核", detail: "等待确认", status: "running" }],
     trendOptions: [{ label: "不附加热点", heat: "" }], selectedTrend: input.selectedTrend || "不附加热点", status: "reviewing", briefSnapshot: structuredClone(input),
@@ -198,11 +209,14 @@ export async function reviseDifyWorkflow(req: RevisionRequest): Promise<RunResul
   const tone = req.toneChoice === "保持原 tone" ? prior.effectiveTone || input.tone : req.toneChoice;
   const corrections = [prior.verifiedFacts, req.verifiedCorrections.trim()].filter(Boolean).join("\n");
   const trendJson = req.trend === "不附加热点" ? '{"attached":false}' : JSON.stringify({ attached: true, title: req.trend, source: "用户选定话题，仅作表达背景，非商家事实证据" });
-  const { outputs, workflowRunId } = await callWorkflow({ draft: input.brief, documents: prior.documents || "", platforms: JSON.stringify(input.platforms), language: input.language,
-    banned_words: input.bannedWords, voice_and_tone: prior.effectiveTone || input.tone, tone_choice: tone, tone_details: input.toneDetails,
-    verified_corrections: corrections, content_feedback: req.feedback, score_feedback: req.scoreFeedback,
-    round1_content: packContent(prior), round1_review: prior.reviewJson || "", selected_trend: req.trend, trend_json: trendJson,
-    revision_mode: route, round_no: String((prior.history?.length || 1)+1), scenario: input.scenario || "daily", campus_guidance: knowledgeText(prior.knowledge || [], "guidance"),
+  const knowledge = prior.knowledge || [];
+  // 仅发送新版二轮工作流声明的字段；改稿路径仍由服务端 chooseRevisionRoute 决定并记录在版本历史里。
+  const { outputs, workflowRunId } = await callWorkflow({ draft: mergeVerifiedFacts(input.brief, knowledge),
+    documents: prior.documents || "", platforms: JSON.stringify(input.platforms), language: input.language,
+    banned_words: input.bannedWords, voice_and_tone: prior.effectiveTone || input.tone, tone_choice: tone,
+    tone_details: mergeScenarioGuidance(input.toneDetails, knowledge), verified_corrections: corrections,
+    content_feedback: req.feedback, score_feedback: req.scoreFeedback, round1_content: packContent(prior),
+    round1_review: prior.reviewJson || "", selected_trend: req.trend, trend_json: trendJson,
   }, true);
   const run: RunResult = { ...prior, ...parseOutputs(outputs, input.platforms, prior), status: "reviewing", effectiveTone: tone, verifiedFacts: corrections,
     documents: outputs.documents_text ? String(outputs.documents_text) : prior.documents, selectedTrend: req.trend, workflowRunId, route,

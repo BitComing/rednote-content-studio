@@ -40,12 +40,12 @@ export function normalizeBaseUrl(value: string) {
 function readFileConfig(): Omit<DifyConfig, "source"> | null {
   try {
     if (!fs.existsSync(CONFIG_PATH)) return null;
-    const parsed = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8")) as Partial<DifyConfig>;
+    const parsed = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8")) as Partial<DifyConfig> & { round2ApiKey?: string };
     if (!parsed.baseUrl || !parsed.apiKey) return null;
     return {
       baseUrl: normalizeBaseUrl(parsed.baseUrl),
       apiKey: parsed.apiKey,
-      revisionApiKey: parsed.revisionApiKey || process.env.DIFY_REVISION_API_KEY,
+      revisionApiKey: parsed.revisionApiKey || parsed.round2ApiKey || process.env.DIFY_REVISION_API_KEY,
       analysisApiKey: parsed.analysisApiKey || process.env.DIFY_ANALYSIS_API_KEY,
       user: parsed.user || "content-studio",
     };

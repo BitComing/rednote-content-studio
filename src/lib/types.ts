@@ -18,7 +18,6 @@ export interface UploadedFile {
 }
 
 export interface BriefInput {
-  scenario?: string;
   merchantId?: string;
   selectedTrend?: string;
   trendJson?: string;

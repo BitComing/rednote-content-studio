@@ -18,7 +18,7 @@ if (!fs.existsSync(cfgPath)) {
 const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
 const base = String(cfg.baseUrl || "").replace(/\/+$/, "");
 const key = String(cfg.apiKey || "");
-const rev = String(cfg.revisionApiKey || "");
+const rev = String(cfg.revisionApiKey || cfg.round2ApiKey || "");
 const mask = (v) => (v ? `${v.slice(0, 4)}...${v.slice(-3)}（${v.length} 位）` : "（空）");
 
 console.log("配置文件：", cfgPath);
@@ -32,7 +32,6 @@ const inputs = {
   voice_and_tone: "自然友好 Natural and friendly",
   platform: "小红书",
   language: "简体中文",
-  scenario: "exam_week",
 };
 
 async function timed(label, fn) {

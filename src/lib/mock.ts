@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { chooseRevisionRoute, scenarioGuidance } from "./campus";
+import { chooseRevisionRoute, editorialGuidance } from "./campus";
 import type { BriefInput, Evaluation, RevisionRequest, RunResult } from "./types";
 const demoEvaluation = (): Evaluation => ({ status: "demo", rubric: "campus-rednote-v1", judges: [], mean: null, spread: null, requiresReview: true, elapsedMs: 0 });
 export function createMockRun(input: BriefInput): RunResult {
   const content = input.platforms.map(p => `## ${p}\n【交互演示，未调用 AI】\n${input.brief}`).join("\n\n");
   const evaluation = demoEvaluation();
   return { id: randomUUID(), mode: "mock", startedAt: new Date().toISOString(), briefSnapshot: structuredClone(input), effectiveTone: input.tone,
-    knowledge: scenarioGuidance(input.scenario), documents: "", reviewJson: "", canApprove: false, elapsedMs: 0, evaluation,
+    knowledge: editorialGuidance(), documents: "", reviewJson: "", canApprove: false, elapsedMs: 0, evaluation,
     drafts: input.platforms.map(platform => ({ platform, firstRound: `【交互演示，未调用 AI】\n${input.brief}`, score: -1, status: "revise", issues: [{ id: "demo", severity: "block", type: "demo", reason: "演示内容未进行模型评审，不能作为通过审核的稿件。" }], claims: [], wordCount: input.brief.length })),
     stages: [{ id: "demo", label: "交互演示", detail: "未调用生成或评分模型", status: "warning" }], trendOptions: [{ label: "不附加热点", heat: "" }], selectedTrend: input.selectedTrend || "不附加热点",
     score: -1, summary: "交互演示，不包含真实模型评分。", status: "reviewing",

@@ -12,7 +12,7 @@ const caseId=process.argv.find(x=>x.startsWith('--case='))?.split('=')[1];const 
 const dir=path.join(process.cwd(),'.data','benchmarks',new Date().toISOString().replace(/[:.]/g,'-'));fs.mkdirSync(dir,{recursive:true});const rows=[];
 function record(value){rows.push(value);fs.appendFileSync(path.join(dir,'runs.jsonl'),JSON.stringify(value)+'\n');}
 (async()=>{for(const c of selected)for(let repeat=1;repeat<=repeats;repeat++){
-  const input={brief:c.brief,tone:'自然友好 Natural and friendly',toneDetails:'',language:'简体中文',platforms:['小红书'],files:[],bannedWords:'保过,保证提分,全网最低',scenario:c.scenario};
+  const input={brief:c.brief,tone:'自然友好 Natural and friendly',toneDetails:'',language:'简体中文',platforms:['小红书'],files:[],bannedWords:'保过,保证提分,全网最低'};
   let base;try{base=await runDifyWorkflow(input);record({case:c.id,repeat,arm:'initial',run:base});}catch(e){record({case:c.id,repeat,arm:'initial',error:e.message});continue;}
   // Counterbalance ordering; both branches receive an immutable copy of the SAME first draft.
   const arms=repeat%2 ? ['targeted','regenerate'] : ['regenerate','targeted'];

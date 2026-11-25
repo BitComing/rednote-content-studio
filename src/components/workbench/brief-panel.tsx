@@ -12,7 +12,6 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { LANGUAGES, shortToneLabel, TONES } from "@/lib/constants";
 import type { BriefInput, UploadedFile } from "@/lib/types";
-import { SCENARIOS } from "@/lib/campus";
 import { TrendPicker } from "./trend-picker";
 
 export function BriefPanel({
@@ -52,10 +51,6 @@ export function BriefPanel({
       </CardHeader>
       <CardContent className="max-h-none space-y-4 overflow-visible pr-3 xl:max-h-[calc(100vh-190px)] xl:overflow-y-auto xl:scrollbar-thin">
         <div className="space-y-1.5">
-          <label className="block space-y-1 text-xs">校园经营场景
-            <Select value={value.scenario || "daily"} onChange={e => onChange({ scenario: e.target.value })}>{SCENARIOS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</Select>
-          </label>
-          <p className="text-[11px] text-muted-foreground">{SCENARIOS.find(s => s.id === value.scenario)?.hint}</p>
           <label className="block space-y-1 text-xs">商家资料编号（可选）<Input value={value.merchantId || ""} onChange={e => onChange({ merchantId: e.target.value })} placeholder="匹配本地已核实商家知识库" /></label>
           <label htmlFor="brief" className="text-xs font-medium">
             商家简报与已核实事实

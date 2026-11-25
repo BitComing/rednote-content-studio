@@ -38,7 +38,6 @@ export function Studio({
     toneDetails: "",
     language: LANGUAGES[0],
     platforms: ["小红书"],
-    scenario: "exam",
     merchantId: "",
     bannedWords: DEFAULT_BANNED_WORDS,
     files: [],
@@ -60,7 +59,10 @@ export function Studio({
     fetch(`/api/runs/${encodeURIComponent(id)}`).then(r => r.ok ? r.json() : null).then((saved: RunResult | null) => {
       if (!saved) return;
       setRun(saved); setStatus(saved.status); setTrend(saved.selectedTrend);
-      if (saved.briefSnapshot) setInput(saved.briefSnapshot);
+      if (saved.briefSnapshot) {
+        const { scenario: _legacyScenario, ...snapshot } = saved.briefSnapshot as BriefInput & { scenario?: string };
+        setInput(snapshot);
+      }
     }).catch(() => {});
   }, []);
 

@@ -56,7 +56,7 @@ const sys = `You are a blind independent evaluator of campus merchant social cop
 const user = JSON.stringify({
   content: "## 小红书\n拾光咖啡考试周自习活动，长桌充足，营业时间 09:00-18:00，人均 18 元。",
   sources: "商家确认：营业时间 09:00-18:00，人均 18 元，有长桌。",
-  requirements: { scenario: "exam_week", platforms: ["小红书"], tone: "温暖治愈", language: "简体中文" },
+  requirements: { platforms: ["小红书"], tone: "温暖治愈", language: "简体中文" },
 });
 
 for (const model of models) {
