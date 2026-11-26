@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  ArrowRight,
   Check,
   Clipboard,
   Columns2,
@@ -14,7 +15,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
@@ -41,7 +41,6 @@ function EmptyDraft({ label }: { label: string }) {
     <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-md border border-dashed bg-muted/20 p-6 text-center">
       <RotateCcw className="h-5 w-5 text-muted-foreground/60" />
       <div className="text-xs font-medium">{label}</div>
-      <div className="text-[11px] text-muted-foreground">先在右侧提交修改意见</div>
     </div>
   );
 }
@@ -49,9 +48,11 @@ function EmptyDraft({ label }: { label: string }) {
 function DraftPanel({
   draft,
   status,
+  onOpenReview,
 }: {
   draft: PlatformDraft;
   status: WorkspaceStatus;
+  onOpenReview?: () => void;
 }) {
   const [view, setView] = useState<ViewMode>(draft.secondRound ? "second" : "first");
   const [copied, setCopied] = useState(false);
@@ -155,16 +156,7 @@ function DraftPanel({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t pt-3">
-        <div className="flex min-w-[130px] flex-1 items-center gap-2">
-          <span className="text-[11px] text-muted-foreground">AI 评分</span>
-          <Progress
-            value={draft.score}
-            className="max-w-[120px]"
-            indicatorClassName={draft.score >= 90 ? "bg-emerald-600" : undefined}
-          />
-          <span className="text-xs font-semibold">{draft.score >= 0 ? draft.score : "—"}</span>
-        </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-1 items-center gap-1.5">
           {issues > 0 ? (
             <Badge variant="warning">{issues} 条建议</Badge>
           ) : (
@@ -174,6 +166,12 @@ function DraftPanel({
             {draft.claims.length} 条事实引用
           </span>
         </div>
+        {onOpenReview ? (
+          <Button size="sm" variant="outline" className="ml-auto" onClick={onOpenReview}>
+            进入人工审核
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        ) : null}
       </div>
     </div>
   );
@@ -184,11 +182,13 @@ export function DraftWorkspace({
   status,
   selectedPlatform,
   onSelectPlatform,
+  onOpenReview,
 }: {
   run: RunResult | null;
   status: WorkspaceStatus;
   selectedPlatform: string;
   onSelectPlatform: (platform: string) => void;
+  onOpenReview?: () => void;
 }) {
   const active = useMemo(
     () => selectedPlatform || run?.drafts[0]?.platform || "",
@@ -201,9 +201,6 @@ export function DraftWorkspace({
         <CardContent className="flex min-h-[420px] flex-col items-center justify-center gap-3">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
           <div className="text-sm font-medium">正在生成多平台稿件</div>
-          <div className="text-[11px] text-muted-foreground">
-            正在执行首轮生成与安全检查
-          </div>
         </CardContent>
       </Card>
     );
@@ -217,9 +214,6 @@ export function DraftWorkspace({
             <FileText className="h-5 w-5 text-muted-foreground" />
           </div>
           <div className="text-sm font-medium">还没有生成稿</div>
-          <div className="max-w-sm text-center text-[11px] leading-5 text-muted-foreground">
-            填写左侧简报后运行，首轮内容、评分和事实引用会出现在这里。
-          </div>
         </CardContent>
       </Card>
     );
@@ -262,6 +256,7 @@ export function DraftWorkspace({
                 key={`${draft.platform}-${draft.secondRound ? "second" : "first"}`}
                 draft={draft}
                 status={status}
+                onOpenReview={onOpenReview}
               />
             </TabsContent>
           ))}

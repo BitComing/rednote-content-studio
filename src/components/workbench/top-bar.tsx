@@ -8,7 +8,9 @@ import {
   Play,
   Settings2,
   ShieldCheck,
+  Smartphone,
 } from "lucide-react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,27 +20,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { RunMode, WorkspaceStatus } from "@/lib/types";
+import { STATUS_BADGE_VARIANTS, STATUS_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-
-const statusLabel: Record<WorkspaceStatus, string> = {
-  idle: "待运行",
-  running: "运行中",
-  reviewing: "待审核",
-  revising: "改稿中",
-  approved: "已通过",
-  rejected: "已归档",
-  error: "运行失败",
-};
-
-const statusVariant: Record<WorkspaceStatus, "outline" | "info" | "warning" | "success" | "destructive"> = {
-  idle: "outline",
-  running: "info",
-  reviewing: "warning",
-  revising: "info",
-  approved: "success",
-  rejected: "destructive",
-  error: "destructive",
-};
 
 export function TopBar({
   view,
@@ -111,7 +94,7 @@ export function TopBar({
 
         {view === "generate" ? (
           <div className="ml-2 hidden items-center gap-1.5 md:flex">
-            <Badge variant={statusVariant[status]}>{statusLabel[status]}</Badge>
+            <Badge variant={STATUS_BADGE_VARIANTS[status]}>{STATUS_LABELS[status]}</Badge>
             {mode ? (
               <Badge variant={mode === "dify" ? "info" : "outline"}>
                 {mode === "dify" ? "Dify API" : "演示模式"}
@@ -164,6 +147,19 @@ export function TopBar({
             <TooltipContent>Dify 连接设置</TooltipContent>
           </Tooltip>
 
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                href="/m"
+                aria-label="打开移动版"
+                className="hidden h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/80 sm:inline-flex"
+              >
+                <Smartphone className="h-4 w-4" />
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>打开手机端 /m</TooltipContent>
+          </Tooltip>
+
           {view === "generate" ? (
             <>
               <Tooltip>
@@ -202,8 +198,8 @@ export function TopBar({
         <div className="flex items-center gap-2 border-t px-3 py-1.5 text-[11px] text-muted-foreground md:hidden">
           <ShieldCheck className="h-3.5 w-3.5" />
           <span>发布前需人工确认</span>
-          <Badge variant={statusVariant[status]} className="ml-auto">
-            {statusLabel[status]}
+          <Badge variant={STATUS_BADGE_VARIANTS[status]} className="ml-auto">
+            {STATUS_LABELS[status]}
           </Badge>
         </div>
       ) : null}

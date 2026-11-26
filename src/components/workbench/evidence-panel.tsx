@@ -7,11 +7,10 @@ const dimensions: Record<string, string> = { factuality: "事实", safety: "风�
 export function EvidencePanel({ run, onExport }: { run: RunResult; onExport: () => void }) {
   const ev = run.evaluation;
   return <Card><CardHeader className="pb-2"><CardTitle>版本与独立评估</CardTitle></CardHeader><CardContent className="space-y-3 text-xs">
-    <div className="flex flex-wrap justify-between gap-2"><span>当前 V{run.history?.length || 1} · {routeLabels[run.route || "initial"]} · 总耗时 {((run.elapsedMs || 0)/1000).toFixed(1)} 秒</span><Button size="sm" variant="outline" onClick={onExport}>导出全部版本 / 评估 JSON</Button></div>
+    <div className="flex flex-wrap justify-between gap-2"><span>V{run.history?.length || 1} · {routeLabels[run.route || "initial"]} · {((run.elapsedMs || 0)/1000).toFixed(1)} 秒</span><Button size="sm" variant="outline" onClick={onExport}>导出 JSON</Button></div>
     <p>当前语气：{run.effectiveTone || run.briefSnapshot?.tone} · 话题：{run.selectedTrend}</p>
-    <p className="text-muted-foreground">事实 40% · 风险 25% · 校园与平台适配 15% · 语气 10% · 清晰度 10%。每项 0–5 分，服务端计算总分。</p>
     <div className="rounded-md border bg-muted/30 p-3">
-      {ev?.status === "demo" ? "演示模式：未调用评估模型，不显示模拟分数。" : ev?.status === "unconfigured" || !ev ? "外部评估尚未配置；当前内部评分不代表独立评估已完成。" : <>
+      {ev?.status === "demo" ? "演示模式，未评分。" : ev?.status === "unconfigured" || !ev ? "外部评估未配置。" : <>
         <strong>外部均分 {ev.mean ?? "—"} / 100</strong> · 分差 {ev.spread ?? "—"} · {ev.status === "complete" ? "评估完成" : "评估未完整完成"}
         {ev.requiresReview && <p className="mt-1 text-amber-800">存在风险、明显分歧或评估缺失，暂不能通过。</p>}
         {ev.judges.map(j => <details key={j.model} className="mt-2 border-t pt-2"><summary>{j.model} · {j.status === "ok" ? `${j.score} 分` : "失败"} · {(j.elapsedMs/1000).toFixed(1)} 秒</summary>
@@ -26,7 +25,7 @@ export function EvidencePanel({ run, onExport }: { run: RunResult; onExport: () 
     </details>
     <details><summary className="cursor-pointer">本次知识依据（{run.knowledge?.length || 0}）</summary>
       {run.knowledge?.map(k => <div key={k.id} className="mt-2 rounded border p-2"><strong>{k.kind === "fact" ? "商家事实" : "写作指引，非事实依据"} · {k.title}</strong><p>{k.text}</p><p className="text-muted-foreground">{k.source}</p></div>)}
-      {!run.knowledge?.some(k => k.kind === "fact") && <p className="mt-2 text-muted-foreground">本次未检索到已核实、在有效期内的商家事实；以提交的简报和文档为准。</p>}
+      {!run.knowledge?.some(k => k.kind === "fact") && <p className="mt-2 text-muted-foreground">未检索到已核实商家事实。</p>}
     </details>
   </CardContent></Card>;
 }

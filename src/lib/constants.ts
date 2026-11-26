@@ -1,3 +1,5 @@
+import type { WorkspaceStatus } from "./types";
+
 export const DEFAULT_BRIEF =
   "【合成演示简报，非真实商家资料】校园咖啡店「拾光咖啡」想在期中周推出自习套餐：手冲咖啡 + 可续杯茶饮，提供靠窗长桌和静音区。希望吸引港中深学生，语气自然，不要夸张，不要承诺提分或保过。";
 
@@ -22,3 +24,40 @@ export const DEFAULT_TREND = "不附加热点";
 export function shortToneLabel(tone: string) {
   return tone.split(/\s+/)[0];
 }
+
+export const ISSUE_TYPE_LABELS: Record<string, string> = {
+  platform: "平台格式",
+  to_verify: "待核实",
+  facts: "事实",
+  tone: "语气",
+  banned_word: "禁用词",
+  exaggeration: "夸张表达",
+  trend: "热点",
+  coverage: "平台覆盖",
+  other: "其他",
+  gate: "综合判定",
+  demo: "演示",
+};
+
+export const STATUS_LABELS: Record<WorkspaceStatus, string> = {
+  idle: "待运行",
+  running: "运行中",
+  reviewing: "待审核",
+  revising: "改稿中",
+  approved: "已通过",
+  rejected: "已归档",
+  error: "运行失败",
+};
+
+export const STATUS_BADGE_VARIANTS: Record<
+  WorkspaceStatus,
+  "outline" | "info" | "warning" | "success" | "destructive"
+> = {
+  idle: "outline",
+  running: "info",
+  reviewing: "warning",
+  revising: "info",
+  approved: "success",
+  rejected: "destructive",
+  error: "destructive",
+};

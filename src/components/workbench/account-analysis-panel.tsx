@@ -3,11 +3,14 @@
 import { useState } from "react";
 import {
   AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
   BarChart3,
   CheckCircle2,
   Code2,
   Download,
   Lightbulb,
+  Link2,
   Loader2,
   Play,
   Settings2,
@@ -20,19 +23,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
+import { StepNav, type StepNavItem } from "@/components/workbench/step-nav";
 import type { AccountAnalysisResult, AccountAnalysisScores } from "@/lib/types";
 import { cn, downloadText, formatDateTime } from "@/lib/utils";
+
+type AccountStep = "input" | "overview" | "advice";
+
+const STEPS: StepNavItem<AccountStep>[] = [
+  { key: "input", label: "输入账号", icon: Link2 },
+  { key: "overview", label: "评估概览", icon: BarChart3 },
+  { key: "advice", label: "改进建议", icon: Lightbulb },
+];
 
 const DIMENSIONS: Array<{
   key: keyof AccountAnalysisScores;
   label: string;
-  weight: number;
 }> = [
-  { key: "content", label: "内容质量", weight: 30 },
-  { key: "interaction", label: "互动表现", weight: 25 },
-  { key: "consistency", label: "发布规律", weight: 15 },
-  { key: "topicStructure", label: "选题结构", weight: 15 },
-  { key: "growthPotential", label: "增长潜力", weight: 15 },
+  { key: "content", label: "内容质量" },
+  { key: "interaction", label: "互动表现" },
+  { key: "consistency", label: "发布规律" },
+  { key: "topicStructure", label: "选题结构" },
+  { key: "growthPotential", label: "增长潜力" },
 ];
 
 function scoreTextTone(score: number | null) {
@@ -90,13 +101,13 @@ export function AccountAnalysisPanel({
   configured: boolean;
   onOpenSettings: () => void;
 }) {
+  const [step, setStep] = useState<AccountStep>("input");
   const [accountUrl, setAccountUrl] = useState("");
   const [notesLimit, setNotesLimit] = useState("20");
   const [merchantNote, setMerchantNote] = useState("");
   const [result, setResult] = useState<AccountAnalysisResult | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
-  const [showRaw, setShowRaw] = useState(false);
 
   async function handleAnalyze() {
     if (!accountUrl.trim()) {
@@ -105,7 +116,8 @@ export function AccountAnalysisPanel({
     }
     setError("");
     setRunning(true);
-    setShowRaw(false);
+    setResult(null);
+    setStep("overview");
     try {
       const response = await fetch("/api/account-analysis", {
         method: "POST",
@@ -138,124 +150,156 @@ export function AccountAnalysisPanel({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[336px_minmax(0,1fr)]">
-      <Card className="h-fit">
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              账号评估
-            </CardTitle>
-            <Badge variant="outline" className="ml-auto">
-              12 积分 / 次
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1.5">
-            <label htmlFor="account-url" className="text-xs font-medium">
-              小红书主页链接或用户编号
-            </label>
-            <Input
-              id="account-url"
-              value={accountUrl}
-              onChange={(event) => setAccountUrl(event.target.value)}
-              placeholder="https://www.xiaohongshu.com/user/profile/..."
-              className="text-xs"
-              autoComplete="off"
-            />
-          </div>
+    <>
+      <StepNav
+        ariaLabel="账号评估步骤"
+        step={step}
+        items={STEPS}
+        disabledKeys={result ? [] : ["advice"]}
+        onChange={setStep}
+      />
 
-          <div className="space-y-1.5">
-            <label htmlFor="account-limit" className="text-xs font-medium">
-              拉取笔记条数上限
-            </label>
-            <Input
-              id="account-limit"
-              type="number"
-              min={1}
-              max={100}
-              value={notesLimit}
-              onChange={(event) => setNotesLimit(event.target.value)}
-              className="text-xs"
-            />
-            <p className="text-[10px] leading-4 text-muted-foreground">
-              建议 20。
-            </p>
-          </div>
+      {error ? (
+        <div className="mb-3 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span className="min-w-0 flex-1">{error}</span>
+          <button
+            type="button"
+            className="shrink-0 text-xs font-medium text-red-700 underline-offset-2 hover:underline"
+            onClick={() => setStep("input")}
+          >
+            返回输入
+          </button>
+        </div>
+      ) : null}
 
-          <div className="space-y-1.5">
-            <label htmlFor="merchant-note" className="text-xs font-medium">
-              商家背景说明（可空）
-            </label>
-            <Textarea
-              id="merchant-note"
-              value={merchantNote}
-              onChange={(event) => setMerchantNote(event.target.value)}
-              placeholder="例如：校园咖啡店，主要面向港中深学生"
-              className="min-h-[70px] text-xs"
-            />
-          </div>
+      {step === "input" ? (
+        <div className="mx-auto max-w-3xl">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                  账号评估
+                </CardTitle>
+                <Badge variant="outline" className="text-xs">
+                  12 积分 / 次
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 p-4 sm:p-5">
+              <div className="space-y-2">
+                <label
+                  htmlFor="account-url"
+                  className="flex items-center gap-1 text-[13px] font-medium"
+                >
+                  小红书主页链接或用户编号
+                  <span className="text-red-600" aria-hidden>
+                    *
+                  </span>
+                </label>
+                <Input
+                  id="account-url"
+                  value={accountUrl}
+                  onChange={(event) => setAccountUrl(event.target.value)}
+                  placeholder="https://www.xiaohongshu.com/user/profile/..."
+                  className="text-sm"
+                  autoComplete="off"
+                />
+              </div>
 
-          {!configured ? (
-            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] leading-4 text-amber-800">
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <div className="min-w-0 space-y-1.5">
-                <p>还没配置账号评估工作流的 API Key。</p>
-                <Button type="button" size="sm" variant="outline" onClick={onOpenSettings}>
-                  <Settings2 className="h-3.5 w-3.5" />
-                  打开 Dify 设置
+              <div className="space-y-2">
+                <label htmlFor="account-limit" className="text-[13px] font-medium">
+                  拉取笔记条数上限
+                </label>
+                <Input
+                  id="account-limit"
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={notesLimit}
+                  onChange={(event) => setNotesLimit(event.target.value)}
+                  className="max-w-[180px] text-sm"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="merchant-note" className="text-[13px] font-medium">
+                  商家背景说明（可空）
+                </label>
+                <Textarea
+                  id="merchant-note"
+                  value={merchantNote}
+                  onChange={(event) => setMerchantNote(event.target.value)}
+                  placeholder="例如：校园咖啡店，主要面向港中深学生"
+                  className="min-h-[84px] resize-y text-sm leading-6"
+                />
+              </div>
+
+              {!configured ? (
+                <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-[13px] leading-5 text-amber-800">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div className="min-w-0 space-y-2">
+                    <p>账号评估 API Key 未配置。</p>
+                    <Button type="button" size="sm" variant="outline" onClick={onOpenSettings}>
+                      <Settings2 className="h-3.5 w-3.5" />
+                      打开设置
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="border-t pt-4">
+                <Button
+                  type="button"
+                  className="w-full sm:w-56"
+                  onClick={handleAnalyze}
+                  disabled={running || !configured}
+                >
+                  {running ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                  {running ? "评估中…" : "开始评估"}
                 </Button>
               </div>
-            </div>
-          ) : null}
-
-          <Button
-            type="button"
-            className="w-full"
-            onClick={handleAnalyze}
-            disabled={running || !configured}
-          >
-            {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-            {running ? "评估中…" : "开始评估"}
-          </Button>
-
-          <p className="text-[10px] leading-4 text-muted-foreground">
-            浏览量不公开，仅用点赞 / 收藏 / 评论。
-          </p>
-        </CardContent>
-      </Card>
-
-      <div className="min-w-0 space-y-4">
-        {error ? (
-          <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span className="min-w-0 flex-1">{error}</span>
-          </div>
-        ) : null}
-
-        {running ? (
-          <Card>
-            <CardContent className="flex min-h-[280px] flex-col items-center justify-center gap-3 py-10 text-center">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <div className="text-sm font-medium">正在拉取公开笔记并评估</div>
-              <p className="max-w-sm text-xs leading-5 text-muted-foreground">
-                依次执行：账号解析 → SocialToAI 拉取笔记 → 指标计算 → 模型评分。通常需要 20 秒左右。
-              </p>
             </CardContent>
           </Card>
-        ) : result ? (
-          <>
+        </div>
+      ) : step === "overview" ? (
+        <div className="mx-auto max-w-4xl">
+          {running ? (
             <Card>
-              <CardHeader className="pb-3">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <CardContent className="flex min-h-[320px] flex-col items-center justify-center gap-3 text-center">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <div className="text-sm font-medium">正在拉取公开笔记并评估</div>
+              </CardContent>
+            </Card>
+          ) : !result ? (
+            <Card>
+              <CardContent className="flex min-h-[300px] flex-col items-center justify-center gap-3 text-center">
+                <BarChart3 className="h-6 w-6 text-muted-foreground/60" />
+                <div className="text-sm font-medium">还没有评估结果</div>
+                <Button variant="outline" onClick={() => setStep("input")}>
+                  去输入账号
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader className="pb-2.5">
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
                   <CardTitle className="flex items-center gap-2">
                     <BarChart3 className="h-4 w-4 text-primary" />
-                    评估结果
+                    评估概览
                   </CardTitle>
-                  <Badge variant="outline">{result.id}</Badge>
-                  <span className="text-[11px] text-muted-foreground">
-                    {formatDateTime(result.startedAt)} · 用时 {Math.round(result.elapsedMs / 1000)}s
+                  <Badge variant="outline" className="text-xs">
+                    {result.id}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {formatDateTime(result.startedAt)} ·{" "}
+                    {Math.round(result.elapsedMs / 1000)}s
                   </span>
                   <div className="ml-auto flex items-center gap-1.5">
                     <Button
@@ -278,24 +322,22 @@ export function AccountAnalysisPanel({
                     </Button>
                   </div>
                 </div>
-                <p className="break-all text-[11px] leading-4 text-muted-foreground">
+                <p className="break-all text-xs leading-5 text-muted-foreground">
                   {result.account}
                   {result.merchantNote ? ` · ${result.merchantNote}` : ""}
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
                 {!result.parsed ? (
-                  <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-[11px] leading-4 text-amber-800">
-                    <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>
-                      模型返回里没有找到结构化评分，下面展示的是原始输出，可以点「查看原始返回」核对。
-                    </span>
+                  <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] leading-5 text-amber-800">
+                    <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>未返回结构化评分，以下为原始输出。</span>
                   </div>
                 ) : null}
 
                 <div className="flex flex-wrap items-end gap-x-6 gap-y-2">
                   <div>
-                    <div className="text-[11px] text-muted-foreground">总评分</div>
+                    <div className="text-xs text-muted-foreground">总评分</div>
                     <div className="flex items-baseline gap-1">
                       <span
                         className={cn(
@@ -308,7 +350,16 @@ export function AccountAnalysisPanel({
                       <span className="text-xs text-muted-foreground">/ 100</span>
                     </div>
                   </div>
-                  <Badge variant={result.overallScore === null ? "outline" : result.overallScore >= 60 ? "success" : "destructive"}>
+                  <Badge
+                    variant={
+                      result.overallScore === null
+                        ? "outline"
+                        : result.overallScore >= 60
+                          ? "success"
+                          : "destructive"
+                    }
+                    className="text-xs"
+                  >
                     {scoreLabel(result.overallScore)}
                   </Badge>
                 </div>
@@ -317,11 +368,15 @@ export function AccountAnalysisPanel({
                   {DIMENSIONS.map((item) => {
                     const score = result.scores[item.key];
                     return (
-                      <div key={item.key} className="space-y-1.5 rounded-md border px-2.5 py-2">
-                        <div className="flex items-center gap-2 text-[11px]">
+                      <div key={item.key} className="space-y-1.5 rounded-md border px-3 py-2">
+                        <div className="flex items-center gap-2 text-[13px]">
                           <span className="font-medium">{item.label}</span>
-                          <span className="text-muted-foreground">权重 {item.weight}%</span>
-                          <span className={cn("ml-auto tabular-nums font-medium", scoreTextTone(score))}>
+                          <span
+                            className={cn(
+                              "ml-auto tabular-nums font-medium",
+                              scoreTextTone(score),
+                            )}
+                          >
                             {score ?? "—"}
                           </span>
                         </div>
@@ -335,116 +390,114 @@ export function AccountAnalysisPanel({
                 </div>
 
                 {result.benchmarkNote ? (
-                  <p className="rounded-md bg-muted/40 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
+                  <p className="rounded-md bg-muted/40 px-3 py-2 text-[13px] leading-5 text-muted-foreground">
                     评语：{result.benchmarkNote}
                   </p>
                 ) : null}
+
+                <Button onClick={() => setStep("advice")} className="w-full sm:w-auto">
+                  查看改进建议
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
               </CardContent>
             </Card>
+          )}
+        </div>
+      ) : !result ? (
+        <Card className="mx-auto max-w-4xl">
+          <CardContent className="flex min-h-[280px] flex-col items-center justify-center gap-3 text-center">
+            <Lightbulb className="h-6 w-6 text-muted-foreground/60" />
+            <div className="text-sm font-medium">还没有评估结果</div>
+            <Button variant="outline" onClick={() => setStep("input")}>
+              去输入账号
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="mx-auto max-w-4xl space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="flex items-center gap-2 text-sm font-semibold">
+              <Lightbulb className="h-4 w-4 text-primary" />
+              改进建议
+            </span>
+            <Badge variant="outline" className="text-xs">
+              {result.id}
+            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto"
+              onClick={() => setStep("overview")}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              返回概览
+            </Button>
+          </div>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-1.5 text-xs">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                    优势
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {result.strengths.length > 0 ? (
-                    result.strengths.map((item, index) => (
-                      <p key={`${index}-${item}`} className="text-[11px] leading-5">
-                        · {item}
-                      </p>
-                    ))
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground">未返回</p>
-                  )}
-                </CardContent>
-              </Card>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            {[
+              {
+                title: "优势",
+                icon: CheckCircle2,
+                iconClass: "text-emerald-600",
+                items: result.strengths,
+                numbered: false,
+              },
+              {
+                title: "问题",
+                icon: TriangleAlert,
+                iconClass: "text-amber-600",
+                items: result.problems,
+                numbered: false,
+              },
+              {
+                title: "改进建议",
+                icon: Lightbulb,
+                iconClass: "text-primary",
+                items: result.suggestions,
+                numbered: true,
+              },
+            ].map((group) => {
+              const Icon = group.icon;
+              return (
+                <Card key={group.title}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2">
+                      <Icon className={cn("h-4 w-4", group.iconClass)} />
+                      {group.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {group.items.length > 0 ? (
+                      group.items.map((item, index) => (
+                        <p key={`${index}-${item}`} className="text-[13px] leading-6">
+                          {group.numbered ? `${index + 1}. ` : "· "}
+                          {item}
+                        </p>
+                      ))
+                    ) : (
+                      <p className="text-[13px] text-muted-foreground">未返回</p>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-1.5 text-xs">
-                    <TriangleAlert className="h-3.5 w-3.5 text-amber-600" />
-                    问题
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {result.problems.length > 0 ? (
-                    result.problems.map((item, index) => (
-                      <p key={`${index}-${item}`} className="text-[11px] leading-5">
-                        · {item}
-                      </p>
-                    ))
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground">未返回</p>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-1.5 text-xs">
-                    <Lightbulb className="h-3.5 w-3.5 text-primary" />
-                    改进建议
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {result.suggestions.length > 0 ? (
-                    result.suggestions.map((item, index) => (
-                      <p key={`${index}-${item}`} className="text-[11px] leading-5">
-                        {index + 1}. {item}
-                      </p>
-                    ))
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground">未返回</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="flex items-center gap-1.5 text-xs">
-                    <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    原始返回
-                  </CardTitle>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="ml-auto h-7 text-[11px] text-muted-foreground"
-                    onClick={() => setShowRaw((current) => !current)}
-                  >
-                    {showRaw ? "收起" : "查看原始返回"}
-                  </Button>
-                </div>
-              </CardHeader>
-              {showRaw ? (
-                <CardContent>
-                  <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted/40 p-2.5 text-[10px] leading-4 text-muted-foreground">
-                    {result.rawReport}
-                  </pre>
-                </CardContent>
-              ) : null}
-            </Card>
-          </>
-        ) : (
-          <Card>
-            <CardContent className="flex min-h-[320px] flex-col items-center justify-center gap-3 py-10 text-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <BarChart3 className="h-5 w-5" />
-              </div>
-              <div className="text-sm font-medium">还没有评估结果</div>
-              <p className="max-w-sm text-xs leading-5 text-muted-foreground">
-                输入主页链接或用户编号，输出五维评分与改进建议。
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </div>
+          <details className="rounded-md border bg-card">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-[13px] font-medium">
+              <span className="flex items-center gap-2">
+                <Code2 className="h-4 w-4 text-muted-foreground" />
+                原始返回
+              </span>
+              <span className="text-xs font-normal text-muted-foreground">展开</span>
+            </summary>
+            <pre className="max-h-80 overflow-auto whitespace-pre-wrap break-words border-t p-3 text-xs leading-5 text-muted-foreground">
+              {result.rawReport}
+            </pre>
+          </details>
+        </div>
+      )}
+    </>
   );
 }
