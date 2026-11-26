@@ -1,17 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  ArrowLeft,
   ArrowRight,
   BarChart3,
+  Clipboard,
   ClipboardCheck,
   FileText,
   Loader2,
   PenLine,
   RefreshCw,
   Settings2,
+  Share2,
   ShieldCheck,
   Smartphone,
   X,
@@ -24,6 +26,7 @@ import { useWorkbench, type GenerateStep } from "@/components/workbench/use-work
 import { MobileBrief } from "@/components/mobile/mobile-brief";
 import { MobileDrafts } from "@/components/mobile/mobile-drafts";
 import { MobileReview } from "@/components/mobile/mobile-review";
+import { PreviewBody } from "@/components/mobile/preview-body";
 import { Badge } from "@/components/ui/badge";
 import { STATUS_BADGE_VARIANTS, STATUS_LABELS } from "@/lib/constants";
 import { cn, copyText } from "@/lib/utils";
@@ -42,8 +45,8 @@ export function MobileStudio({
   initialAnalysisConfigured: boolean;
 }) {
   const wb = useWorkbench({ initialDifyConfigured, initialAnalysisConfigured });
-  const router = useRouter();
   const [toast, setToast] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const {
     view,
@@ -81,10 +84,22 @@ export function MobileStudio({
     flash(ok ? "预览链接已复制，可在手机浏览器打开" : url);
   }
 
-  function openPreview() {
-    if (!run) return;
-    const platform = selectedPlatform || run.drafts[0]?.platform || "";
-    router.push(`/p/${run.id}${platform ? `?p=${encodeURIComponent(platform)}` : ""}`);
+  const previewDraft = run
+    ? run.drafts.find((draft) => draft.platform === selectedPlatform) ||
+      run.drafts[0] ||
+      null
+    : null;
+
+  async function copyFullText() {
+    if (!previewDraft) return;
+    const body = previewDraft.secondRound || previewDraft.firstRound;
+    flash((await copyText(body)) ? "全文已复制" : "复制失败，请长按选择文本");
+  }
+
+  async function copyPreviewLink() {
+    if (!run || !previewDraft) return;
+    const url = `${window.location.origin}/p/${run.id}?p=${encodeURIComponent(previewDraft.platform)}`;
+    flash((await copyText(url)) ? "分享链接已复制" : url);
   }
 
   const reviewLocked = status === "approved" || status === "rejected";
@@ -115,7 +130,21 @@ export function MobileStudio({
           </div>
         </div>
 
-        {view === "generate" ? (
+        {previewOpen ? (
+          <div className="mx-auto flex w-full max-w-[560px] items-center gap-2 px-3 pb-2">
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(false)}
+              className="inline-flex h-8 items-center gap-1 rounded-md bg-secondary/60 px-2.5 text-[12px] font-medium text-muted-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              返回工作台
+            </button>
+            <span className="truncate text-[11px] text-muted-foreground">
+              成品页 · {previewDraft?.platform ?? ""}
+            </span>
+          </div>
+        ) : view === "generate" ? (
           <div className="mx-auto grid w-full max-w-[560px] grid-cols-3 gap-1 px-3 pb-2">
             {STEPS.map((item, index) => {
               const active = step === item.key;
@@ -178,7 +207,37 @@ export function MobileStudio({
           view === "analysis" ? "pb-28" : "pb-44",
         )}
       >
-        {view === "analysis" ? (
+        {previewOpen && run && previewDraft ? (
+          <div className="space-y-3">
+            {run.drafts.length > 1 ? (
+              <div
+                className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-0.5"
+                style={{ scrollbarWidth: "none" }}
+              >
+                {run.drafts.map((item) => (
+                  <button
+                    key={item.platform}
+                    type="button"
+                    onClick={() => setSelectedPlatform(item.platform)}
+                    className={cn(
+                      "inline-flex h-9 shrink-0 items-center rounded-full border px-3.5 text-[13px] font-medium",
+                      item.platform === previewDraft.platform
+                        ? "border-primary/40 bg-primary/5 text-foreground"
+                        : "border-border bg-card text-muted-foreground",
+                    )}
+                  >
+                    {item.platform}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <PreviewBody
+              run={run}
+              draft={previewDraft}
+              shareHref={`/p/${run.id}?p=${encodeURIComponent(previewDraft.platform)}`}
+            />
+          </div>
+        ) : view === "analysis" ? (
           <AccountAnalysisPanel
             configured={analysisConfigured}
             onOpenSettings={() => setSettingsOpen(true)}
@@ -202,14 +261,33 @@ export function MobileStudio({
       </main>
 
       {toast ? (
-        <div className="pointer-events-none fixed bottom-36 left-1/2 z-40 w-max max-w-[86vw] -translate-x-1/2 break-all rounded-full bg-foreground px-4 py-2 text-center text-[12px] text-background shadow-lg">
+        <div className="pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom)+124px)] left-1/2 z-40 w-max max-w-[86vw] -translate-x-1/2 break-all rounded-full bg-foreground px-4 py-2 text-center text-[12px] text-background shadow-lg">
           {toast}
         </div>
       ) : null}
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <div className="mx-auto w-full max-w-[560px]">
-          {view === "generate" ? (
+          {view === "generate" && previewOpen ? (
+            <div className="flex gap-2 px-3 py-2">
+              <button
+                type="button"
+                onClick={copyFullText}
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-primary text-[15px] font-medium text-primary-foreground"
+              >
+                <Clipboard className="h-4 w-4" />
+                复制全文
+              </button>
+              <button
+                type="button"
+                onClick={copyPreviewLink}
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-lg border bg-card text-[15px] font-medium"
+              >
+                <Share2 className="h-4 w-4" />
+                分享链接
+              </button>
+            </div>
+          ) : view === "generate" ? (
             <div className="px-3 py-2">
               {step === "brief" ? (
                 <button
@@ -238,7 +316,7 @@ export function MobileStudio({
               ) : reviewLocked ? (
                 <button
                   type="button"
-                  onClick={openPreview}
+                  onClick={() => setPreviewOpen(true)}
                   className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border bg-card text-[15px] font-medium"
                 >
                   <Smartphone className="h-4 w-4" />
@@ -265,10 +343,13 @@ export function MobileStudio({
           <nav className="grid grid-cols-3 border-t border-border/70" aria-label="移动端功能切换">
             <button
               type="button"
-              onClick={() => setView("generate")}
+              onClick={() => {
+                setView("generate");
+                setPreviewOpen(false);
+              }}
               className={cn(
                 "flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-medium",
-                view === "generate" ? "text-primary" : "text-muted-foreground",
+                view === "generate" && !previewOpen ? "text-primary" : "text-muted-foreground",
               )}
             >
               <PenLine className="h-5 w-5" />
@@ -276,11 +357,18 @@ export function MobileStudio({
             </button>
             <button
               type="button"
-              onClick={openPreview}
+              onClick={() => {
+                setView("generate");
+                setPreviewOpen(true);
+              }}
               disabled={!run}
               className={cn(
                 "flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-medium",
-                run ? "text-muted-foreground" : "text-muted-foreground/40",
+                !run
+                  ? "text-muted-foreground/40"
+                  : view === "generate" && previewOpen
+                    ? "text-primary"
+                    : "text-muted-foreground",
               )}
             >
               <Smartphone className="h-5 w-5" />
@@ -288,7 +376,10 @@ export function MobileStudio({
             </button>
             <button
               type="button"
-              onClick={() => setView("analysis")}
+              onClick={() => {
+                setView("analysis");
+                setPreviewOpen(false);
+              }}
               className={cn(
                 "flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-medium",
                 view === "analysis" ? "text-primary" : "text-muted-foreground",
