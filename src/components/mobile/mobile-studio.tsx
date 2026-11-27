@@ -7,19 +7,19 @@ import {
   ArrowRight,
   BarChart3,
   Clipboard,
-  ClipboardCheck,
-  FileText,
   Loader2,
   PenLine,
   RefreshCw,
   Settings2,
   Share2,
-  ShieldCheck,
   Smartphone,
   X,
 } from "lucide-react";
 
-import { AccountAnalysisPanel } from "@/components/workbench/account-analysis-panel";
+import {
+  AccountAnalysisPanel,
+  type AccountStep,
+} from "@/components/workbench/account-analysis-panel";
 import { DifySettingsDialog } from "@/components/workbench/dify-settings-dialog";
 import { EvidencePanel } from "@/components/workbench/evidence-panel";
 import { useWorkbench, type GenerateStep } from "@/components/workbench/use-workbench";
@@ -27,15 +27,66 @@ import { MobileBrief } from "@/components/mobile/mobile-brief";
 import { MobileDrafts } from "@/components/mobile/mobile-drafts";
 import { MobileReview } from "@/components/mobile/mobile-review";
 import { PreviewBody } from "@/components/mobile/preview-body";
-import { Badge } from "@/components/ui/badge";
-import { STATUS_BADGE_VARIANTS, STATUS_LABELS } from "@/lib/constants";
 import { cn, copyText } from "@/lib/utils";
 
-const STEPS: Array<{ key: GenerateStep; label: string; icon: typeof FileText }> = [
-  { key: "brief", label: "简报", icon: FileText },
-  { key: "results", label: "稿件", icon: ClipboardCheck },
-  { key: "review", label: "审核", icon: ShieldCheck },
+const STEPS: Array<{ key: GenerateStep; label: string }> = [
+  { key: "brief", label: "填简报" },
+  { key: "results", label: "看稿件" },
+  { key: "review", label: "做审核" },
 ];
+
+const ANALYSIS_STEPS: Array<{ key: AccountStep; label: string }> = [
+  { key: "input", label: "填账号" },
+  { key: "overview", label: "看评估" },
+  { key: "advice", label: "看建议" },
+];
+
+function MobileStepBar({
+  items,
+  active,
+  onSelect,
+  isDisabled,
+}: {
+  items: Array<{ key: string; label: string }>;
+  active: string;
+  onSelect: (key: string) => void;
+  isDisabled?: (key: string) => boolean;
+}) {
+  return (
+    <div className="mx-auto grid w-full max-w-[560px] grid-cols-3 gap-1 px-3 pb-2">
+      {items.map((item, index) => {
+        const current = active === item.key;
+        const disabled = isDisabled?.(item.key) ?? false;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onSelect(item.key)}
+            disabled={disabled}
+            aria-current={current ? "step" : undefined}
+            className={cn(
+              "flex h-8 items-center justify-center gap-1.5 rounded-md border text-[12px] font-medium transition-colors",
+              current
+                ? "border-primary/40 bg-primary/5 text-foreground"
+                : "border-transparent bg-secondary/60 text-muted-foreground",
+              disabled && "opacity-40",
+            )}
+          >
+            <span
+              className={cn(
+                "flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-semibold",
+                current ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground",
+              )}
+            >
+              {index + 1}
+            </span>
+            {item.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function MobileStudio({
   initialDifyConfigured,
@@ -47,6 +98,8 @@ export function MobileStudio({
   const wb = useWorkbench({ initialDifyConfigured, initialAnalysisConfigured });
   const [toast, setToast] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [analysisStep, setAnalysisStep] = useState<AccountStep>("input");
+  const [analysisHasResult, setAnalysisHasResult] = useState(false);
 
   const {
     view,
@@ -55,7 +108,6 @@ export function MobileStudio({
     setStep,
     status,
     run,
-    difyConfigured,
     analysisConfigured,
     settingsOpen,
     setSettingsOpen,
@@ -111,14 +163,8 @@ export function MobileStudio({
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
             <PenLine className="h-3.5 w-3.5" />
           </div>
-          <div className="min-w-0">
-            <div className="truncate text-[13px] font-semibold leading-tight">校园内容工作台</div>
-            <div className="truncate text-[10px] leading-tight text-muted-foreground">
-              移动版 · {difyConfigured ? "Dify 已配置" : "未配置 Dify"}
-            </div>
-          </div>
+          <div className="truncate text-[13px] font-semibold leading-tight">稿定</div>
           <div className="ml-auto flex shrink-0 items-center gap-1.5">
-            <Badge variant={STATUS_BADGE_VARIANTS[status]}>{STATUS_LABELS[status]}</Badge>
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
@@ -144,48 +190,23 @@ export function MobileStudio({
               成品页 · {previewDraft?.platform ?? ""}
             </span>
           </div>
-        ) : view === "generate" ? (
-          <div className="mx-auto grid w-full max-w-[560px] grid-cols-3 gap-1 px-3 pb-2">
-            {STEPS.map((item, index) => {
-              const active = step === item.key;
-              const disabled = item.key === "review" && !run;
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => setStep(item.key)}
-                  disabled={disabled}
-                  aria-current={active ? "step" : undefined}
-                  className={cn(
-                    "flex h-8 items-center justify-center gap-1.5 rounded-md border text-[12px] font-medium transition-colors",
-                    active
-                      ? "border-primary/40 bg-primary/5 text-foreground"
-                      : "border-transparent bg-secondary/60 text-muted-foreground",
-                    disabled && "opacity-40",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-semibold",
-                      active ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground",
-                    )}
-                  >
-                    {index + 1}
-                  </span>
-                  <Icon className="h-3 w-3" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
         ) : (
-          <div className="mx-auto w-full max-w-[560px] px-3 pb-2">
-            <div className="flex h-8 items-center gap-1.5 rounded-md bg-secondary/60 px-3 text-[12px] font-medium text-muted-foreground">
-              <BarChart3 className="h-3.5 w-3.5" />
-              账号评估 · 独立工作流
-            </div>
-          </div>
+          <MobileStepBar
+            items={view === "generate" ? STEPS : ANALYSIS_STEPS}
+            active={view === "generate" ? step : analysisStep}
+            onSelect={(key) => {
+              if (view === "generate") {
+                setStep(key as GenerateStep);
+              } else {
+                setAnalysisStep(key as AccountStep);
+              }
+            }}
+            isDisabled={(key) =>
+              view === "generate"
+                ? key === "review" && !run
+                : key === "advice" && !analysisHasResult
+            }
+          />
         )}
       </header>
 
@@ -241,6 +262,11 @@ export function MobileStudio({
           <AccountAnalysisPanel
             configured={analysisConfigured}
             onOpenSettings={() => setSettingsOpen(true)}
+            step={analysisStep}
+            onStepChange={setAnalysisStep}
+            onResultChange={setAnalysisHasResult}
+            hideStepNav
+            hideHeader
           />
         ) : step === "brief" ? (
           <MobileBrief value={input} onChange={patchInput} />
@@ -377,6 +403,10 @@ export function MobileStudio({
             <button
               type="button"
               onClick={() => {
+                if (view !== "analysis") {
+                  setAnalysisStep("input");
+                  setAnalysisHasResult(false);
+                }
                 setView("analysis");
                 setPreviewOpen(false);
               }}

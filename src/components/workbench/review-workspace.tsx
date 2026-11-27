@@ -410,7 +410,7 @@ export function ReviewWorkspace({
                     id="feedback"
                     value={feedback}
                     onChange={(event) => onFeedbackChange(event.target.value)}
-                    placeholder="例如：删掉「光线好、桌面宽」，价格先不写"
+                    placeholder="如：删掉价格，补充营业时间"
                     className="min-h-[84px] resize-y text-sm leading-6"
                   />
                 </div>
@@ -422,7 +422,7 @@ export function ReviewWorkspace({
                     id="verified"
                     value={verifiedCorrections}
                     onChange={(event) => onVerifiedChange(event.target.value)}
-                    placeholder="只填商家确认过的事实，没有则留空"
+                    placeholder="商家确认过的事实"
                     className="min-h-[64px] resize-y text-sm leading-6"
                   />
                 </div>
@@ -457,7 +457,7 @@ export function ReviewWorkspace({
                         id="score-feedback"
                         value={scoreFeedback}
                         onChange={(event) => onScoreFeedbackChange(event.target.value)}
-                        placeholder="说明哪个判断不合理及原因；不会因要求高分而加分"
+                        placeholder="指出不合理之处及原因"
                         className="min-h-[64px] resize-y text-sm leading-6"
                       />
                     </div>

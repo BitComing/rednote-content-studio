@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
-  title: "移动工作台 | Rednote Content Studio",
-  description: "小红书内容生成、审核与改稿的手机端工作台",
+  title: "稿定",
+  description: "小红书内容生成与审核",
   appleWebApp: {
     capable: true,
-    title: "内容工作台",
+    title: "稿定",
     statusBarStyle: "default",
   },
 };

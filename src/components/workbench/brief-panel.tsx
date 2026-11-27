@@ -65,7 +65,7 @@ export function BriefPanel({
             htmlFor="brief"
             className="flex items-center gap-1 text-[13px] font-medium"
           >
-            商家简报与已核实事实
+            产品简介
             <span className="text-red-600" aria-hidden>
               *
             </span>
@@ -75,7 +75,7 @@ export function BriefPanel({
             value={value.brief}
             onChange={(event) => onChange({ brief: event.target.value })}
             className="min-h-[190px] resize-y text-sm leading-6"
-            placeholder="商家、产品、已核实事实、不能说的话"
+            placeholder="产品、卖点、禁用说法"
           />
         </div>
 
@@ -97,7 +97,7 @@ export function BriefPanel({
                     addPlatform();
                   }
                 }}
-                placeholder="输入后回车"
+                placeholder="平台名称"
                 className="text-sm"
               />
               <Button
@@ -211,7 +211,7 @@ export function BriefPanel({
                 id="merchant-id"
                 value={value.merchantId || ""}
                 onChange={(event) => onChange({ merchantId: event.target.value })}
-                placeholder="匹配已核实商家知识库"
+                placeholder="商家编号"
                 className="text-sm"
               />
             </div>
@@ -309,7 +309,7 @@ export function BriefPanel({
                 id="tone-details"
                 value={value.toneDetails}
                 onChange={(event) => onChange({ toneDetails: event.target.value })}
-                placeholder="例如：少用感叹号"
+                placeholder="如：少用感叹号"
                 className="text-sm"
               />
             </div>
@@ -326,7 +326,7 @@ export function BriefPanel({
                 value={value.bannedWords}
                 onChange={(event) => onChange({ bannedWords: event.target.value })}
                 className="min-h-[64px] resize-y text-sm leading-6"
-                placeholder="逗号或换行分隔"
+                placeholder="如：保过、第一"
               />
             </div>
 

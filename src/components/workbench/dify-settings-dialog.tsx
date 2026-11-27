@@ -227,7 +227,7 @@ export function DifySettingsDialog({
                 type={showKey ? "text" : "password"}
                 value={apiKey}
                 onChange={(event) => setApiKey(event.target.value)}
-                placeholder={status.keyMasked ? `已保存 ${status.keyMasked}，留空则不修改` : "app-..."}
+                placeholder={status.keyMasked ? "留空不修改" : "app-..."}
                 className="pr-9 text-xs"
                 autoComplete="off"
               />
@@ -244,10 +244,10 @@ export function DifySettingsDialog({
 
           <div className="space-y-1.5">
             <label htmlFor="revision-key" className="text-xs font-medium">改稿工作流 API Key</label>
-            <Input id="revision-key" type="password" value={revisionApiKey} onChange={event => setRevisionApiKey(event.target.value)} placeholder={status.revisionConfigured ? "已配置，留空保留" : "第二个应用的 app-..."} autoComplete="off" />
+            <Input id="revision-key" type="password" value={revisionApiKey} onChange={event => setRevisionApiKey(event.target.value)} placeholder={status.revisionConfigured ? "留空不修改" : "app-..."} autoComplete="off" />
             <p className="text-[10px] text-muted-foreground">两个工作流分别发布，分别填写密钥。测试连接仅检测首轮。</p>
             <label htmlFor="analysis-key" className="text-xs font-medium">账号评估工作流 API Key</label>
-            <Input id="analysis-key" type="password" value={analysisApiKey} onChange={event => setAnalysisApiKey(event.target.value)} placeholder={status.analysisConfigured ? "已配置，留空保留" : "评估应用的 app-..."} autoComplete="off" />
+            <Input id="analysis-key" type="password" value={analysisApiKey} onChange={event => setAnalysisApiKey(event.target.value)} placeholder={status.analysisConfigured ? "留空不修改" : "app-..."} autoComplete="off" />
             <p className="text-[10px] text-muted-foreground">账号评估与生成流程独立，每次评估会消耗 SocialToAI 积分。</p>
             <label htmlFor="dify-user" className="text-xs font-medium">
               User 标识
@@ -256,7 +256,7 @@ export function DifySettingsDialog({
               id="dify-user"
               value={user}
               onChange={(event) => setUser(event.target.value)}
-              placeholder="content-studio"
+              placeholder="user"
               className="text-xs"
               autoComplete="off"
             />

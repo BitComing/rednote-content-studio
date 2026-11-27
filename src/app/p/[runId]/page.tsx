@@ -15,8 +15,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export const metadata: Metadata = {
-  title: "内容预览 | Rednote Content Studio",
-  description: "小红书内容预览：复制全文或分享给他人查看",
+  title: "稿定",
+  description: "内容预览",
 };
 
 export const viewport: Viewport = {

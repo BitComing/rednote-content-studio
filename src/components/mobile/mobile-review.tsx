@@ -360,7 +360,7 @@ export function MobileReview({ wb }: { wb: Workbench }) {
                   id="m-feedback"
                   value={feedback}
                   onChange={(event) => setFeedback(event.target.value)}
-                  placeholder="例如：删掉「光线好、桌面宽」，价格先不写"
+                  placeholder="如：删掉价格，补充营业时间"
                   className="min-h-[88px] resize-y text-base leading-6"
                 />
               </div>
@@ -372,7 +372,7 @@ export function MobileReview({ wb }: { wb: Workbench }) {
                   id="m-verified"
                   value={verifiedCorrections}
                   onChange={(event) => setVerifiedCorrections(event.target.value)}
-                  placeholder="只填商家确认过的事实，没有则留空"
+                  placeholder="商家确认过的事实"
                   className="min-h-[72px] resize-y text-base leading-6"
                 />
               </div>
@@ -408,7 +408,7 @@ export function MobileReview({ wb }: { wb: Workbench }) {
                       id="m-score-feedback"
                       value={scoreFeedback}
                       onChange={(event) => setScoreFeedback(event.target.value)}
-                      placeholder="说明哪个判断不合理及原因；不会因要求高分而加分"
+                      placeholder="指出不合理之处及原因"
                       className="min-h-[72px] resize-y text-base leading-6"
                     />
                   </div>

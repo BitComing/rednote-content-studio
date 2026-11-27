@@ -1,6 +1,5 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
 import { ArrowRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -8,7 +7,6 @@ import { cn } from "@/lib/utils";
 export type StepNavItem<K extends string> = {
   key: K;
   label: string;
-  icon: LucideIcon;
 };
 
 export function StepNav<K extends string>({
@@ -29,7 +27,6 @@ export function StepNav<K extends string>({
       {items.map((item, index) => {
         const active = step === item.key;
         const disabled = disabledKeys.includes(item.key);
-        const Icon = item.icon;
         return (
           <div key={item.key} className="flex items-center gap-2">
             {index > 0 ? (
@@ -59,10 +56,7 @@ export function StepNav<K extends string>({
               >
                 {index + 1}
               </span>
-              <span className="flex items-center gap-1.5 text-[13px] font-medium">
-                <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-                {item.label}
-              </span>
+              <span className="text-[13px] font-medium">{item.label}</span>
             </button>
           </div>
         );

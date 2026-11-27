@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ClipboardCheck, FileText, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, X } from "lucide-react";
 
 import { AccountAnalysisPanel } from "@/components/workbench/account-analysis-panel";
 import { BriefPanel } from "@/components/workbench/brief-panel";
@@ -66,7 +66,6 @@ export function Studio({
         <TopBar
           view={view}
           onViewChange={setView}
-          status={status}
           mode={run?.mode ?? (difyConfigured ? "dify" : "mock")}
           difyConfigured={difyConfigured}
           running={busy}
@@ -176,7 +175,7 @@ export function Studio({
 }
 
 const STEP_ITEMS: StepNavItem<GenerateStep>[] = [
-  { key: "brief", label: "输入简报", icon: FileText },
-  { key: "results", label: "运行概览", icon: ClipboardCheck },
-  { key: "review", label: "人工审核", icon: ShieldCheck },
+  { key: "brief", label: "填简报" },
+  { key: "results", label: "看稿件" },
+  { key: "review", label: "做审核" },
 ];

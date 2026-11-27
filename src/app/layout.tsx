@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "内容工作台 | Rednote Content Studio",
-  description: "小红书多平台内容生成、审核与二轮改稿工作台",
+  title: "稿定",
+  description: "小红书内容生成与审核",
 };
 
 export default function RootLayout({

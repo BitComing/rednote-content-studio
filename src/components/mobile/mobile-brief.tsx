@@ -41,7 +41,7 @@ export function MobileBrief({
           <div className="space-y-1.5">
             <label htmlFor="m-brief" className="flex items-center gap-1 text-[13px] font-medium">
               <FileText className="h-3.5 w-3.5 text-primary" />
-              商家简报与已核实事实
+              产品简介
               <span className="text-red-600" aria-hidden>
                 *
               </span>
@@ -51,11 +51,8 @@ export function MobileBrief({
               value={value.brief}
               onChange={(event) => onChange({ brief: event.target.value })}
               className="min-h-[180px] resize-y text-base leading-7"
-              placeholder="商家、产品、已核实事实、不能说的话"
+              placeholder="产品、卖点、禁用说法"
             />
-            <p className="text-[11px] leading-4 text-muted-foreground">
-              只写商家确认过的信息，生成结果仍需人工核对。
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -103,7 +100,7 @@ export function MobileBrief({
                     addPlatform(platformInput);
                   }
                 }}
-                placeholder="其他平台，回车添加"
+                placeholder="平台名称"
                 className="h-10 text-base"
               />
               <button
@@ -162,7 +159,6 @@ export function MobileBrief({
             <Settings2 className="h-4 w-4 text-muted-foreground" />
             更多设置
           </span>
-          <span className="text-[11px] font-normal text-muted-foreground">资料 · 文件 · 热点</span>
         </summary>
         <div className="space-y-4 border-t p-3.5">
           <div className="space-y-1.5">
@@ -173,7 +169,7 @@ export function MobileBrief({
               id="m-merchant"
               value={value.merchantId || ""}
               onChange={(event) => onChange({ merchantId: event.target.value })}
-              placeholder="匹配已核实商家知识库"
+              placeholder="商家编号"
               className="h-10 text-base"
             />
           </div>
@@ -247,7 +243,7 @@ export function MobileBrief({
               id="m-tone-details"
               value={value.toneDetails}
               onChange={(event) => onChange({ toneDetails: event.target.value })}
-              placeholder="例如：少用感叹号"
+              placeholder="如：少用感叹号"
               className="h-10 text-base"
             />
           </div>
@@ -261,7 +257,7 @@ export function MobileBrief({
               value={value.bannedWords}
               onChange={(event) => onChange({ bannedWords: event.target.value })}
               className="min-h-[72px] resize-y text-base leading-6"
-              placeholder="逗号或换行分隔"
+              placeholder="如：保过、第一"
             />
           </div>
 

@@ -19,14 +19,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { RunMode, WorkspaceStatus } from "@/lib/types";
-import { STATUS_BADGE_VARIANTS, STATUS_LABELS } from "@/lib/constants";
+import type { RunMode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export function TopBar({
   view,
   onViewChange,
-  status,
   mode,
   difyConfigured,
   running,
@@ -37,7 +35,6 @@ export function TopBar({
 }: {
   view: "generate" | "analysis";
   onViewChange: (view: "generate" | "analysis") => void;
-  status: WorkspaceStatus;
   mode: RunMode | null;
   difyConfigured: boolean;
   running: boolean;
@@ -53,12 +50,7 @@ export function TopBar({
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
             <PenLine className="h-4 w-4" />
           </div>
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold leading-5">校园商家内容工作台</div>
-            <div className="hidden truncate text-[11px] leading-4 text-muted-foreground sm:block">
-              Rednote Content Studio
-            </div>
-          </div>
+          <div className="truncate text-sm font-semibold leading-5">稿定</div>
         </div>
 
         <div className="ml-1 flex shrink-0 items-center rounded-md bg-secondary p-0.5">
@@ -94,7 +86,6 @@ export function TopBar({
 
         {view === "generate" ? (
           <div className="ml-2 hidden items-center gap-1.5 md:flex">
-            <Badge variant={STATUS_BADGE_VARIANTS[status]}>{STATUS_LABELS[status]}</Badge>
             {mode ? (
               <Badge variant={mode === "dify" ? "info" : "outline"}>
                 {mode === "dify" ? "Dify API" : "演示模式"}
@@ -198,9 +189,6 @@ export function TopBar({
         <div className="flex items-center gap-2 border-t px-3 py-1.5 text-[11px] text-muted-foreground md:hidden">
           <ShieldCheck className="h-3.5 w-3.5" />
           <span>发布前需人工确认</span>
-          <Badge variant={STATUS_BADGE_VARIANTS[status]} className="ml-auto">
-            {STATUS_LABELS[status]}
-          </Badge>
         </div>
       ) : null}
     </header>

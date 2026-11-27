@@ -10,7 +10,6 @@ import {
   Code2,
   Download,
   Lightbulb,
-  Link2,
   Loader2,
   Play,
   Settings2,
@@ -27,12 +26,12 @@ import { StepNav, type StepNavItem } from "@/components/workbench/step-nav";
 import type { AccountAnalysisResult, AccountAnalysisScores } from "@/lib/types";
 import { cn, downloadText, formatDateTime } from "@/lib/utils";
 
-type AccountStep = "input" | "overview" | "advice";
+export type AccountStep = "input" | "overview" | "advice";
 
 const STEPS: StepNavItem<AccountStep>[] = [
-  { key: "input", label: "输入账号", icon: Link2 },
-  { key: "overview", label: "评估概览", icon: BarChart3 },
-  { key: "advice", label: "改进建议", icon: Lightbulb },
+  { key: "input", label: "填账号" },
+  { key: "overview", label: "看评估" },
+  { key: "advice", label: "看建议" },
 ];
 
 const DIMENSIONS: Array<{
@@ -97,17 +96,34 @@ function buildMarkdown(result: AccountAnalysisResult) {
 export function AccountAnalysisPanel({
   configured,
   onOpenSettings,
+  step: controlledStep,
+  onStepChange,
+  onResultChange,
+  hideStepNav = false,
+  hideHeader = false,
 }: {
   configured: boolean;
   onOpenSettings: () => void;
+  step?: AccountStep;
+  onStepChange?: (step: AccountStep) => void;
+  onResultChange?: (hasResult: boolean) => void;
+  hideStepNav?: boolean;
+  hideHeader?: boolean;
 }) {
-  const [step, setStep] = useState<AccountStep>("input");
+  const [internalStep, setInternalStep] = useState<AccountStep>("input");
+  const step = controlledStep ?? internalStep;
+  const setStep = onStepChange ?? setInternalStep;
   const [accountUrl, setAccountUrl] = useState("");
   const [notesLimit, setNotesLimit] = useState("20");
   const [merchantNote, setMerchantNote] = useState("");
   const [result, setResult] = useState<AccountAnalysisResult | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
+
+  function updateResult(next: AccountAnalysisResult | null) {
+    setResult(next);
+    onResultChange?.(Boolean(next));
+  }
 
   async function handleAnalyze() {
     if (!accountUrl.trim()) {
@@ -116,7 +132,7 @@ export function AccountAnalysisPanel({
     }
     setError("");
     setRunning(true);
-    setResult(null);
+    updateResult(null);
     setStep("overview");
     try {
       const response = await fetch("/api/account-analysis", {
@@ -128,7 +144,7 @@ export function AccountAnalysisPanel({
       if (!response.ok) {
         throw new Error(payload.error || "账号评估失败，请稍后重试。");
       }
-      setResult(payload as AccountAnalysisResult);
+      updateResult(payload as AccountAnalysisResult);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "账号评估失败，请稍后重试。");
     } finally {
@@ -151,13 +167,15 @@ export function AccountAnalysisPanel({
 
   return (
     <>
-      <StepNav
-        ariaLabel="账号评估步骤"
-        step={step}
-        items={STEPS}
-        disabledKeys={result ? [] : ["advice"]}
-        onChange={setStep}
-      />
+      {hideStepNav ? null : (
+        <StepNav
+          ariaLabel="账号评估步骤"
+          step={step}
+          items={STEPS}
+          disabledKeys={result ? [] : ["advice"]}
+          onChange={setStep}
+        />
+      )}
 
       {error ? (
         <div className="mb-3 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800">
@@ -176,18 +194,18 @@ export function AccountAnalysisPanel({
       {step === "input" ? (
         <div className="mx-auto max-w-3xl">
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className={hideHeader ? "hidden" : "hidden pb-3 sm:block"}>
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-4 w-4 text-primary" />
-                  账号评估
+                  输入账号
                 </CardTitle>
                 <Badge variant="outline" className="text-xs">
                   12 积分 / 次
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4 p-4 sm:p-5">
+            <CardContent className="space-y-4 p-3.5 sm:space-y-5 sm:p-5">
               <div className="space-y-2">
                 <label
                   htmlFor="account-url"
@@ -202,14 +220,17 @@ export function AccountAnalysisPanel({
                   id="account-url"
                   value={accountUrl}
                   onChange={(event) => setAccountUrl(event.target.value)}
-                  placeholder="https://www.xiaohongshu.com/user/profile/..."
-                  className="text-sm"
+                  placeholder="主页链接"
+                  className="h-10 text-base sm:h-9 sm:text-sm"
                   autoComplete="off"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="account-limit" className="text-[13px] font-medium">
+                <label
+                  htmlFor="account-limit"
+                  className="flex h-5 items-center text-[13px] font-medium"
+                >
                   拉取笔记条数上限
                 </label>
                 <Input
@@ -219,20 +240,23 @@ export function AccountAnalysisPanel({
                   max={100}
                   value={notesLimit}
                   onChange={(event) => setNotesLimit(event.target.value)}
-                  className="max-w-[180px] text-sm"
+                  className="h-10 max-w-[180px] text-base sm:h-9 sm:text-sm"
                 />
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="merchant-note" className="text-[13px] font-medium">
+                <label
+                  htmlFor="merchant-note"
+                  className="flex h-5 items-center text-[13px] font-medium"
+                >
                   商家背景说明（可空）
                 </label>
                 <Textarea
                   id="merchant-note"
                   value={merchantNote}
                   onChange={(event) => setMerchantNote(event.target.value)}
-                  placeholder="例如：校园咖啡店，主要面向港中深学生"
-                  className="min-h-[84px] resize-y text-sm leading-6"
+                  placeholder="如：校园咖啡店"
+                  className="min-h-[84px] resize-y text-base leading-6 sm:text-sm"
                 />
               </div>
 
@@ -249,7 +273,7 @@ export function AccountAnalysisPanel({
                 </div>
               ) : null}
 
-              <div className="border-t pt-4">
+              <div className="flex flex-col gap-2.5 border-t pt-4 sm:flex-row sm:items-center">
                 <Button
                   type="button"
                   className="w-full sm:w-56"
@@ -263,6 +287,9 @@ export function AccountAnalysisPanel({
                   )}
                   {running ? "评估中…" : "开始评估"}
                 </Button>
+                <span className="text-[11px] text-muted-foreground sm:hidden">
+                  12 积分 / 次
+                </span>
               </div>
             </CardContent>
           </Card>
