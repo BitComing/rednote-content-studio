@@ -75,7 +75,7 @@ export function BriefPanel({
             value={value.brief}
             onChange={(event) => onChange({ brief: event.target.value })}
             className="min-h-[190px] resize-y text-sm leading-6"
-            placeholder="产品、卖点、禁用说法"
+            placeholder="请输入产品简介"
           />
         </div>
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { DEFAULT_BANNED_WORDS, DEFAULT_BRIEF, LANGUAGES, TONES } from "@/lib/constants";
+import { DEFAULT_BANNED_WORDS, LANGUAGES, TONES } from "@/lib/constants";
 import type { BriefInput, RevisionMode, RunResult, WorkspaceStatus } from "@/lib/types";
 import { downloadText } from "@/lib/utils";
 
@@ -22,7 +22,7 @@ export function useWorkbench({
   const [analysisConfigured, setAnalysisConfigured] = useState(initialAnalysisConfigured);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [input, setInput] = useState<BriefInput>({
-    brief: DEFAULT_BRIEF,
+    brief: "",
     tone: TONES[0],
     toneDetails: "",
     language: LANGUAGES[0],

@@ -51,7 +51,7 @@ export function MobileBrief({
               value={value.brief}
               onChange={(event) => onChange({ brief: event.target.value })}
               className="min-h-[180px] resize-y text-base leading-7"
-              placeholder="产品、卖点、禁用说法"
+              placeholder="请输入产品简介"
             />
           </div>
 

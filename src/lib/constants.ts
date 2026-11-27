@@ -1,8 +1,5 @@
 import type { WorkspaceStatus } from "./types";
 
-export const DEFAULT_BRIEF =
-  "【合成演示简报，非真实商家资料】校园咖啡店「拾光咖啡」想在期中周推出自习套餐：手冲咖啡 + 可续杯茶饮，提供靠窗长桌和静音区。希望吸引港中深学生，语气自然，不要夸张，不要承诺提分或保过。";
-
 export const TONES = [
   "自然友好 Natural and friendly",
   "专业可信 Professional",
